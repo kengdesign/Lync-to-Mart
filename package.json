@@ -1,0 +1,1 @@
+{"name":"lync-to-mart","version":"0.1.0","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"dev":"node scripts/local.mjs","test":"node --test tests/*.test.mjs","check":"node --check src/worker.mjs && node --check public/app.js","deploy":"wrangler deploy","cf:dev":"wrangler dev"},"devDependencies":{}}
