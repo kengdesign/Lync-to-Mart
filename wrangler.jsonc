@@ -2,9 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lync-to-mart-staging",
   "main": "src/worker.mjs",
+  "workers_dev": true,
+  "routes": [],
   "compatibility_date": "2026-09-25",
   "assets": {"directory": "./public", "binding": "ASSETS", "run_worker_first": true},
-  "d1_databases": [{"binding":"DB","database_name":"lync-to-mart-staging","database_id":"REPLACE_WITH_STAGING_D1_ID","migrations_dir":"migrations"}],
+  "d1_databases": [{"binding":"DB","database_name":"lync-to-mart-staging","database_id":"2565c489-f0d4-43a9-8ea2-1bde5bb6fde3","migrations_dir":"migrations"}],
   "r2_buckets": [{"binding":"MEDIA","bucket_name":"lync-to-mart-staging-media"}],
   "vars": {"IMPORT_HOSTS":"","CHECKOUT_HOSTS":"thaimart.com","APP_ENV":"staging"}
 }
+
