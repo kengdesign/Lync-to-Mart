@@ -59,7 +59,7 @@ Conversion/revenue/affiliate commission จะรายงานได้เม�
 
 1. ใช้ repository แยก https://github.com/kengdesign/Lync-to-Mart แล้ว; ยังต้องตรวจโค้ด/วิธีเชื่อมบัญชี Lyncto เดิมเมื่อเริ่ม SSO
 2. ช่องทางเข้าถึง Cloudflare สำหรับ staging ผ่านการเชื่อมต่อที่รองรับหรือ terminal login
-3. URL สินค้า/ร้าน Thaimart จริง 1–3 ลิงก์ พร้อมเอกสาร integration ถ้ามี
+3. ได้ URL สินค้า Thaimart จริงครบ 3 ลิงก์แล้ว ดู docs/THAIMART-INTEGRATION.md; ยังรอทดสอบ extraction บน staging และเอกสาร integration ถ้ามี
 
 ## คำสั่งสำหรับ Codex รอบต่อไป
 

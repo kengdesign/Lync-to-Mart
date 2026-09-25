@@ -29,3 +29,7 @@
 - รูปอัปโหลดตรวจ signature และขนาด แต่ยังไม่ทำ decode/re-encode/compression
 - เปลี่ยน slug, product reorder, social metadata, pagination และ paid plans management ยังไม่ทำ
 - ไม่มี live preview URL ที่เผยแพร่ให้ผู้ใช้ในรอบนี้
+
+## อัปเดต: URL Thaimart ที่เจ้าของส่งมา
+
+เพิ่ม integration test ของ URL จริง 3 รายการ: การบันทึก/redirect รักษา query parameter และปฏิเสธโดเมนปลอม รวมทั้งหมด 4 test cases การดึง HTML จริงจากสภาพแวดล้อมนี้ได้ HTTP 403 ทั้งสามรายการ จึงยังไม่ได้ยืนยัน product extraction ดู docs/THAIMART-INTEGRATION.md
