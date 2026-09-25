@@ -86,7 +86,7 @@ async function handle(req,env,ctx){
   return json({error:'ไม่พบรายการที่ขอ'},404);
  }
  if(method!=='GET'&&method!=='HEAD')return json({error:'ไม่พบรายการที่ขอ'},404);
- if(p==='/'||p==='/dashboard')return env.ASSETS.fetch(new Request(new URL('/',url),req));
+ if(p==='/'||p==='/dashboard')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
  return env.ASSETS.fetch(req);
 }
 async function productData(b,env,user){const name=clean(b.name,180),source=safeURL(b.source_url,hosts(env.CHECKOUT_HOSTS));if(!name)fail('กรอกชื่อสินค้า');if(!source)fail('ลิงก์สินค้าไม่ตรงกับโดเมน Thaimart ที่ตั้งค่าไว้');const price=b.price===null||b.price===''?null:Number(b.price);if(price!==null&&(!Number.isSafeInteger(price)||price<0||price>10000000000))fail('ราคาไม่ถูกต้อง');const image=clean(b.image_key,150);if(image&&!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',image,user.id).first())fail('รูปภาพไม่ใช่ของบัญชีนี้',403);return [name,clean(b.description,5000),price,source,image,b.status==='published'?'published':'draft'];}
