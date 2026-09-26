@@ -37,15 +37,15 @@ async function handle(req,env,ctx){
  if(p==='/api/logout'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(token)await query(env,'DELETE FROM sessions WHERE token_hash=?',await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'});}
  if(p.startsWith('/preview/')&&method==='GET'){
   const user=await owner(req,env),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
-  const {results:products}=await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY created_at DESC',shop.id).all();
-  return html(storefront({...shop,branding:plan.branding},products,url.origin,true,true));
+  const {results:products}=await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY created_at DESC,id DESC',shop.id).all();
+  return html(storefront({...shop,branding:plan.branding},products,url.origin,true,true,url.searchParams));
  }
  if(p.startsWith('/shop/')&&method==='GET'){
   const slug=decodeURIComponent(p.slice(6));const s=await query(env,'SELECT s.*,pl.branding FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=u.plan_id WHERE s.slug=? AND s.published=1',slug).first();
   if(!s)return html(page('ไม่พบร้าน','<main class="missing"><h1>ร้านนี้ยังไม่เปิดให้เข้าชม</h1><p>ตรวจสอบลิงก์หรือติดต่อเจ้าของร้าน</p></main>'),404);
-  const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY created_at DESC",s.id).all();
+  const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY created_at DESC,id DESC",s.id).all();
   ctx.waitUntil(event(env,s.id,null,'view').catch(()=>{}));
-  return html(storefront(s,products,url.origin,env.APP_ENV!=='production'));
+  return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams));
  }
  if(p.startsWith('/go/')&&method==='GET'){
   const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
@@ -84,7 +84,7 @@ async function handle(req,env,ctx){
    if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}
     const coverY=b.cover_position_y===undefined?shop.cover_position_y:Number(b.cover_position_y);if(b.cover_position_y===null||b.cover_position_y===''||!Number.isInteger(coverY)||coverY<0||coverY>100)fail('ตำแหน่งภาพปกต้องอยู่ระหว่าง 0–100');
     await query(env,'UPDATE shops SET name=?,description=?,line_url=?,published=?,logo_key=?,cover_key=?,seo_title=?,seo_description=?,cover_position_y=? WHERE id=? AND owner_id=?',name,clean(b.description,1500),line,b.published===true?1:0,images.logo_key,images.cover_key,b.seo_title===undefined?shop.seo_title:clean(b.seo_title,100),b.seo_description===undefined?shop.seo_description:clean(b.seo_description,200),coverY,shop.id,user.id).run();return json({ok:true});}
-   if(sm[2]==='products'&&method==='GET')return json((await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY created_at DESC',shop.id).all()).results.map(productRecord));
+   if(sm[2]==='products'&&method==='GET')return json((await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY created_at DESC,id DESC',shop.id).all()).results.map(productRecord));
    if(sm[2]==='analytics'&&method==='GET'){
     const days=url.searchParams.get('days')||'30';if(!['7','30'].includes(days))fail('เลือกช่วงเวลา 7 หรือ 30 วัน');
     const range=await query(env,"SELECT date('now','+7 hours',?) AS start,date('now','+7 hours') AS end",`-${Number(days)-1} days`).first();

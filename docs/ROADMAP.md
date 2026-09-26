@@ -96,3 +96,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Per-store product breakdown and empty/error states. API derives limits from the current plan; media usage and upload enforcement share the same 500 MB constant.
 - Stored files include unused uploads; removing images/products does not reclaim storage automatically. Billing/pricing remains a staging proposal; no payments or plan-changing API added.
 - Integration tests cover empty accounts, multiple stores, owner isolation, actual media totals and changed plan limits.
+
+### Paginated one-page storefront (staging)
+- Twelve server-rendered products per page, crawlable previous/next/page links, self-canonical page URLs and page-specific structured data. Search matches name/description/category across all published shop products; filtered searches are noindex. Preview remains owner-only and noindex.
+- Progressive navigation replaces only the catalog, retains shop branding above, supports history/back, aborts stale search requests and falls back to real links/forms without JavaScript.
+- Compact responsive 4/3/2/1-column cards, one cover image, complete extra images/details and variants available on expansion. No source content removed.
+- Integration tests cover 25 products over three pages, whole-shop search, canonical/schema, empty results, invalid pages and preview authorization.
