@@ -80,3 +80,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 รอบแชร์หน้าร้าน: QR Code ลิงก์ตรง /shop/{slug}, ดาวน์โหลด PNG/SVG, native share และ clipboard fallback; สร้างในระบบ ไม่ใช้บริการ QR ภายนอก ไม่บันทึก events ขณะสร้าง QR และไม่แยกยอดสแกนออกจาก page view ยังไม่ใช่ Lyncto dynamic QR เมื่อย้ายโดเมนต้องสร้างใหม่
 
 ลิงก์ซื้อ: migration 0005 แยก checkout_url จาก source_url; ช่องไม่บังคับและเว้นว่างใช้ source_url เดิม, อ่านข้อมูลใหม่เก็บ checkout_url ในฟอร์มไว้, API เก่าที่ไม่ส่งช่องนี้เก็บค่าเดิมไว้, /go เลือกลิงก์ซื้อก่อนและตรวจ allowlist ทุกครั้ง ไม่มีการเติมรหัส Affiliate หรือรับรอง attribution/commission จนกว่าจะมีเอกสารและลิงก์จริงจาก Thaimart
+
+### Product click analytics (staging)
+- Overview ranks products by outbound Thaimart clicks with 7/30-day selection, inclusive of today in Asia/Bangkok.
+- Owner-only API; existing zero-click products and historical deleted-product counts retained. Counts include repeat clicks and may include bots; they do not represent sales, customers or commission.
+- Covered date boundaries, tenant isolation and deleted products in integration tests. No schema migration required.
