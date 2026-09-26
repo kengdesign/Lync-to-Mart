@@ -13,7 +13,7 @@ test('import must save draft first, locks all controls while copying and retries
  };
  try{
   const editor=createProductEditor({api,send,shopId:()=> 'shop',onSaved:async()=>{},toast:()=>{}});
-  editor.edit({imported_at:'now',status:'published',name:'ทดสอบ',source_url:'https://thaimart.com/products/6a8489fba9ceed89ab290994',description_html:`<p>รายละเอียด</p><img src="${photo(2)}">`,gallery:[{url:photo(1)},{url:photo(2)}],variants:[{attributes:[{key:'สี',value:'แดง'}],price:100,image_url:photo(1)}]});
+  editor.edit({imported_at:'now',import_receipt:'verified-receipt',status:'published',name:'ทดสอบ',source_url:'https://thaimart.com/products/6a8489fba9ceed89ab290994',description_html:`<p>รายละเอียด</p><img src="${photo(2)}">`,gallery:[{url:photo(1)},{url:photo(2)}],variants:[{attributes:[{key:'สี',value:'แดง'}],price:100,image_url:photo(1)}]});
   const form=document.querySelector('form'),publish=document.querySelector('[data-save-status="published"]'),save=document.querySelector('#save-product');
   assert.ok(publish.disabled);assert.ok(document.querySelector('#pstatus').disabled);assert.equal(document.querySelector('#pstatus').value,'draft');
   await form.onsubmit({preventDefault(){},target:form,submitter:publish});assert.equal(saves.length,0);assert.equal(copies.length,0);
@@ -21,9 +21,9 @@ test('import must save draft first, locks all controls while copying and retries
   assert.ok([...modal.querySelectorAll('button,input,select,textarea')].every(el=>el.disabled));assert.equal(document.querySelector('#rich-editor').contentEditable,'false');
   release();await saving;assert.equal(saves.length,0);assert.ok(publish.disabled);assert.ok(!save.disabled);assert.match(document.querySelector('#product-error').textContent,/รูปที่สอง/);
   failSecond=false;await form.onsubmit({preventDefault(){},target:form,submitter:save});
-  assert.equal(saves.length,1);assert.equal(saves[0].status,'draft');assert.equal(saves[0].gallery[0].key,'alice/one');assert.equal(saves[0].gallery[1].key,'alice/two');assert.equal(saves[0].variants[0].image_key,'alice/one');assert.match(saves[0].description_html,/\/media\/alice%2Ftwo/);assert.equal(copies.filter(x=>x===photo(1)).length,1);
+  assert.equal(saves.length,1);assert.equal(saves[0].status,'draft');assert.equal(saves[0].import_receipt,'verified-receipt');assert.equal(saves[0].gallery[0].key,'alice/one');assert.equal(saves[0].gallery[1].key,'alice/two');assert.equal(saves[0].variants[0].image_key,'alice/one');assert.match(saves[0].description_html,/\/media\/alice%2Ftwo/);assert.equal(copies.filter(x=>x===photo(1)).length,1);
   assert.equal(document.querySelector('[data-save-status="published"]').disabled,false);assert.equal(document.querySelector('#pstatus').disabled,false);assert.match(modal.textContent,/บันทึกฉบับร่างสำเร็จ/);
-  const next=document.querySelector('form');await next.onsubmit({preventDefault(){},target:next,submitter:document.querySelector('[data-save-status="published"]')});assert.equal(saves[1].status,'published');assert.equal(copies.length,3);
+  const next=document.querySelector('form');await next.onsubmit({preventDefault(){},target:next,submitter:document.querySelector('[data-save-status="published"]')});assert.equal(saves[1].status,'published');assert.equal(saves[1].import_receipt,undefined);assert.equal(copies.length,3);
  }finally{for(const [name,value] of Object.entries(previous)){if(value===undefined)delete globalThis[name];else globalThis[name]=value;}dom.window.close();}
 });
 

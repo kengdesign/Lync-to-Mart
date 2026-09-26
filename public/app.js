@@ -6,7 +6,7 @@ import {mountAccountUsage} from './account-usage.js?v=usage1';
 import {mountProductAnalytics} from './product-analytics.js?v=csv1';
 import {mountShopShare} from './shop-share.js?v=share1';
 import {mountCoverPosition} from './cover-position.js?v=drag2';
-import {createProductEditor} from './product-editor.js?v=trash1';
+import {createProductEditor} from './product-editor.js?v=provenance1';
 const $=s=>document.querySelector(s),app=$('#app'),modal=$('#editor');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state={tab:'overview',shop:null,products:[],stats:[]},toastTimer;

@@ -1,3 +1,4 @@
+import {issueImportReceipt,savedProvenance} from './provenance.mjs';
 import {trashProduct,ownedTrash,restoreProduct} from './trash.mjs';
 import {accountUsage,STORAGE_LIMIT} from './usage.mjs';
 import {productIdentity,duplicateSQL,findDuplicate} from './duplicates.mjs';
@@ -114,7 +115,7 @@ async function handle(req,env,ctx){
    if(sm[2]==='products'&&method==='POST'){
     const b=await body(req),data=await productData(b,env,user),id=crypto.randomUUID();
     const duplicate=await findDuplicate(env,shop.id,'',data[3]);if(duplicate)fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);
-    const result=await query(env,`INSERT INTO products(id,shop_id,name,description,price,source_url,image_key,status,description_html,gallery_json,variants_json,category,checkout_url) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM products p JOIN shops s ON s.id=p.shop_id WHERE s.owner_id=?)<? AND NOT EXISTS(${duplicateSQL})`,id,shop.id,...data,user.id,plan.products,shop.id,'',productIdentity(data[3])).run();if(!result.meta.changes){if(await findDuplicate(env,shop.id,'',data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);fail('จำนวนสินค้าครบตามแพ็กเกจแล้ว',409);};return json({id},201);
+    const result=await query(env,`INSERT INTO products(id,shop_id,name,description,price,source_url,image_key,status,description_html,gallery_json,variants_json,category,checkout_url,import_provenance) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM products p JOIN shops s ON s.id=p.shop_id WHERE s.owner_id=?)<? AND NOT EXISTS(${duplicateSQL})`,id,shop.id,...data,user.id,plan.products,shop.id,'',productIdentity(data[3])).run();if(!result.meta.changes){if(await findDuplicate(env,shop.id,'',data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);fail('จำนวนสินค้าครบตามแพ็กเกจแล้ว',409);};return json({id},201);
    }
   }
   const tm=p.match(/^\/api\/trash\/([^/]+)(?:\/(restore))?$/);
@@ -123,7 +124,7 @@ async function handle(req,env,ctx){
   if(pm){const product=await query(env,'SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND s.owner_id=?',pm[1],user.id).first();if(!product)fail('ไม่พบสินค้า',404);
    if(pm[2]==='featured'){if(method!=='PUT')return json({error:'ไม่พบรายการที่ขอ'},404);const b=await body(req);if(typeof b.featured!=='boolean')fail('สถานะปักหมุดไม่ถูกต้อง');await query(env,'UPDATE products SET featured=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',b.featured?1:0,product.id).run();return json({featured:b.featured});}
    if(method==='GET')return json(productRecord(product));
-   if(method==='PUT'){const data=await productData(await body(req),env,user,product);if(await findDuplicate(env,product.shop_id,product.id,data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);const updated=await query(env,`UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,checkout_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS(${duplicateSQL})`,...data,product.id,product.shop_id,product.id,productIdentity(data[3])).run();if(!updated.meta.changes)fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);return json({ok:true});}
+   if(method==='PUT'){const data=await productData(await body(req),env,user,product);if(await findDuplicate(env,product.shop_id,product.id,data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);const updated=await query(env,`UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,checkout_url=?,import_provenance=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS(${duplicateSQL})`,...data,product.id,product.shop_id,product.id,productIdentity(data[3])).run();if(!updated.meta.changes)fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);return json({ok:true});}
    if(method==='DELETE'){await trashProduct(env,product.id);return json({ok:true,trashed:true});}
   }
   if(p==='/api/import'&&method==='POST'){
@@ -131,7 +132,8 @@ async function handle(req,env,ctx){
    let response;try{response=await fetch(target,{redirect:'manual',signal:AbortSignal.timeout(8000),headers:{Accept:'text/html'}});}catch{fail('ดึงข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง',502);}
    if(!response.ok||!response.headers.get('content-type')?.includes('text/html'))fail('ต้นทางไม่ส่งหน้าสินค้าที่อ่านได้ กรุณาเพิ่มข้อมูลเอง',422);
    let product;try{product=extractProduct(await boundedHTML(response),target);}catch(err){fail(err.message,422);}if(!product)fail('ไม่พบข้อมูลสินค้าแบบมีโครงสร้าง กรุณาเพิ่มข้อมูลเอง',422);
-   return json({...product,source_url:target,status:'draft',notice:'ตรวจสอบข้อมูลและสิทธิ์ใช้รูป ก่อนยืนยันบันทึก รูปจะถูกคัดลอกมายังร้านของคุณ' });
+   const receipt=await issueImportReceipt(env,user,target);
+   return json({...product,...receipt,source_url:target,status:'draft',notice:'ตรวจสอบข้อมูลและสิทธิ์ใช้รูป ก่อนยืนยันบันทึก รูปจะถูกคัดลอกมายังร้านของคุณ' });
   }
   if((p==='/api/media'||p==='/api/media/import'||p==='/api/media/video')&&method==='POST'){
    let source=req;
@@ -172,7 +174,7 @@ async function productData(b,env,user,existing={}){
  });
  for(const v of vs){if(v.image_key&&!images.some(g=>g.key===v.image_key))fail('รูปตัวเลือกต้องอยู่ในแกลเลอรีสินค้า');}
  const prices=vs.map(v=>v.price).filter(v=>v!==null),price=prices.length?Math.min(...prices):parsePrice(b.price);
- return [name,content.text,price,source,images[0]?.key||'',b.status==='published'?'published':'draft',content.html,JSON.stringify(images),JSON.stringify(vs),clean(b.category,500),checkout];
+ return [name,content.text,price,source,images[0]?.key||'',b.status==='published'?'published':'draft',content.html,JSON.stringify(images),JSON.stringify(vs),clean(b.category,500),checkout,await savedProvenance(env,user,b,source,existing)];
 }
 async function saveImage(source,env,user,video=false){
  const limit=video?20000000:5000000;if(Number(source.headers.get('content-length'))>limit)fail(video?'วิดีโอต้องไม่เกิน 20 MB':'รูปภาพต้องไม่เกิน 5 MB',413);

@@ -1,5 +1,5 @@
 import {duplicateSQL,productIdentity,findDuplicate} from './duplicates.mjs';
-const columns=['id','shop_id','name','description','price','source_url','image_key','status','created_at','updated_at','description_html','gallery_json','variants_json','category','checkout_url','featured'];
+const columns=['id','shop_id','name','description','price','source_url','image_key','status','created_at','updated_at','description_html','gallery_json','variants_json','category','checkout_url','featured','import_provenance'];
 const snapshotSQL=`json_object(${columns.map(c=>`'${c}',${c}`).join(',')})`;
 const fail=(message,status=409)=>{throw Object.assign(new Error(message),{status});};
 export async function trashProduct(env,id){
@@ -17,7 +17,7 @@ export async function ownedTrash(env,id,user){
 export async function restoreProduct(env,row,user,plan){
  const product=JSON.parse(row.snapshot);
  if(await findDuplicate(env,row.shop_id,'',product.source_url))fail('มีสินค้าลิงก์เดียวกันในร้านแล้ว กรุณาจัดการรายการนั้นก่อนกู้คืน');
- const values=columns.map(c=>c==='status'?"'draft'":c==='updated_at'?'CURRENT_TIMESTAMP':`json_extract(t.snapshot,'$.${c}')`);
+ const values=columns.map(c=>c==='status'?"'draft'":c==='updated_at'?'CURRENT_TIMESTAMP':c==='import_provenance'?"COALESCE(json_extract(t.snapshot,'$.import_provenance'),'')":`json_extract(t.snapshot,'$.${c}')`);
  const results=await env.DB.batch([
   env.DB.prepare(`INSERT INTO products(${columns.join(',')}) SELECT ${values.join(',')} FROM product_trash t WHERE t.id=? AND t.shop_id=? AND (SELECT COUNT(*) FROM products p JOIN shops s ON s.id=p.shop_id WHERE s.owner_id=?)<? AND NOT EXISTS(${duplicateSQL})`).bind(row.id,row.shop_id,user.id,plan.products,row.shop_id,'',productIdentity(product.source_url)),
   env.DB.prepare('DELETE FROM product_trash WHERE id=? AND EXISTS(SELECT 1 FROM products WHERE id=? AND shop_id=?)').bind(row.id,row.id,row.shop_id)
