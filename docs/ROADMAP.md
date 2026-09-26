@@ -151,3 +151,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Product list opens Trash, with confirmed restore-as-draft and permanent snapshot deletion. Restore preserves original ID/content/media/variants/checkout/featured flag, atomically checks account quota and normalized ThaiMart duplicate identity, then removes the snapshot. Failed restore retains the trash entry.
 - Archived items do not block adding the same link anew; restoring afterwards is blocked while the new active duplicate exists. Media remains stored, private unless separately referenced publicly, and counts toward storage; permanent snapshot deletion does not delete shared R2 files. No auto-expiry yet. Earlier hard-deleted items cannot be recovered by this feature.
 - API/DOM tests cover active/public/media invisibility, owner isolation, duplicate reimport/restore, quota failure, field preservation, draft restore, permanent deletion and request locks. Suite: 35 passing tests.
+
+### Saved shop readiness report
+- Overview now checks saved product cover keys, plain-text descriptions, category and price (including every variant; zero is valid). Includes drafts and published products for the current shop, with per-issue filtering, ten-row pages and direct editor actions. It never mutates content or publication state.
+- Store reminders use description/SEO-description fallback, cover/logo availability, store publication and published product presence. Empty catalogs offer Add Product.
+- This is a field-completeness aid, not a broken-image/link checker, content-accuracy audit or SEO/AI ranking score. Unknown prices remain allowed. No external requests, new API, schema or service added.
+- Logic/DOM tests cover missing data, zero/variant prices, image-only descriptions, whole-catalog filters, pagination, escaped names and edit/settings/empty-state actions. All 37 tests pass; responsive CSS implemented, real-device visual QA remains pending.
