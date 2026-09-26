@@ -74,3 +74,5 @@ Conversion/revenue/affiliate commission จะรายงานได้เม�
 Migration 0003 เพิ่มคอลัมน์ร้านเท่านั้น ไม่เปลี่ยน slug หรือสถานะเปิดร้านเดิม; รูปแบรนด์เปิดสาธารณะเมื่อร้านเผยแพร่ รูปที่นำออกยังไม่ลบ R2 ถาวร
 
 งานถัดไปที่ยังไม่เปิดใช้: QR/share assets, import provenance และตรวจรายการซ้ำ/ความต่างก่อนอัปเดต, SSO Lyncto, AI fact-based, ระบบสมาชิกและชำระเงิน ทั้งนี้รายละเอียด extraction เก่าในแผนด้านบนให้ยึดสถานะล่าสุดใน THAIMART-INTEGRATION.md
+
+ภาพปก: เลื่อนจุดโฟกัสแนวตั้งได้ด้วย pointer drag และ range keyboard, กลับกึ่งกลาง, บันทึก cover_position_y 0–100 ค่าเริ่มต้น 50 ผ่าน migration 0004; กรอบ 3:1 ตรงกันทั้ง editor/preview/public โดยไม่เปลี่ยนต้นฉบับ (OG image ยังเป็นไฟล์ต้นฉบับ)

@@ -1,0 +1,1 @@
+ALTER TABLE shops ADD COLUMN cover_position_y INTEGER NOT NULL DEFAULT 50 CHECK(cover_position_y BETWEEN 0 AND 100);
