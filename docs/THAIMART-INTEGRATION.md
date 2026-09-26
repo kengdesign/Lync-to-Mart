@@ -34,4 +34,6 @@ Adapter อ่าน JSON จาก React Flight และ text records ที�
 
 Automated tests ครอบคลุม UTF-8 Flight parsing, sanitization, สิทธิ์รูปข้ามบัญชี, private/published media, variants/price, การคงข้อมูลเดิม และ SSR structured data; ตรวจ bundle ด้วย Wrangler dry-run ด้วย
 
+ตรวจ staging จริงหลัง deploy: ล็อกอินและ /api/import ทั้ง 3 URLs ผ่าน ได้รูป/ตัวเลือกตรงกับตาราง และยืนยัน /api/me เปิด import แล้ว ไม่ได้สร้างหรือแก้สินค้าในร้านผู้ใช้ระหว่างตรวจ
+
 Migration 0002 เพิ่มคอลัมน์เท่านั้น Cloudflare deploy command เดิมจะ apply ก่อน deploy; ต้องใช้ทั้ง migration และ Worker เวอร์ชันใหม่ร่วมกัน
