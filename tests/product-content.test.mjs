@@ -31,3 +31,16 @@ test('gallery, inline image ownership, variant prices and SSR details round-trip
  const records=await (await call(`/api/shops/${shop}/products`)).json();assert.ok(records.some(x=>x.name==='เดิม'&&x.description.includes('บรรทัดสอง')&&x.image_key==='alice/image'));
  }finally{DB.close();}
 });
+
+test('single inventory row without attributes is a base product, while real single options remain',()=>{
+ const wrap=p=>'<script>self.__next_f.push('+JSON.stringify([1,'b:'+JSON.stringify(p)+'\n'])+')</script>';
+ const base={id,name:'ของเล่นแมว',description:'รายละเอียดเดิม',images:[{url:cdn}],minMarkupPrice:59,variants:[{attributes:[],markupPrice:59,weight:50,dimensions:{width:17,height:9,length:26},image:{url:cdn},remainingQuantity:6}]};
+ const parse=p=>extractProduct(wrap(p),'https://thaimart.com/products/'+id);
+ const result=parse(base);assert.deepEqual(result.variants,[]);assert.equal(result.price,5900);assert.equal(result.gallery.length,1);assert.equal(result.description,'รายละเอียดเดิม');assert.ok(result.warnings.some(w=>w.includes('น้ำหนัก: 50')));
+ assert.equal(parse({...base,minMarkupPrice:undefined}).price,5900);assert.equal(parse({...base,minMarkupPrice:0}).price,0);
+ for(const attributes of [undefined,[],[{key:' ',value:''}]])assert.deepEqual(parse({...base,variants:[{...base.variants[0],attributes}]}).variants,[]);
+ const real={...base.variants[0],attributes:[{key:'สี',value:'แดง'}]};assert.equal(parse({...base,variants:[real]}).variants.length,1);
+ assert.equal(parse({...base,variants:[real,{...real,attributes:[{key:'สี',value:'ฟ้า'}]}]}).variants.length,2);
+ assert.throws(()=>parse({...base,variants:[base.variants[0],base.variants[0]]}),/คุณลักษณะไม่ครบ/);
+ assert.throws(()=>parse({...base,variants:[{...real,attributes:[{key:'สี',value:''}]}]}),/คุณลักษณะไม่ครบ/);
+});

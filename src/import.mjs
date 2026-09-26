@@ -24,11 +24,19 @@ export function extractProduct(html,sourceURL=''){
  const content=sanitizeContent(/<\/?[a-z][\s\S]*>/i.test(description)?description:plainHTML(description),{remote:true});
  const rawImages=native?[...p.images,...p.variants.map(v=>v.image).filter(Boolean)]:[p.image||[]].flat();const gallery=[];
  for(const item of rawImages){const url=remoteImage(typeof item==='string'?item:item?.url||item?.contentUrl);if(url&&!gallery.some(x=>x.url===url))gallery.push({url,alt:p.name});else if(item&&!url)warnings.push('มีรูปจากโดเมนที่ยังไม่รองรับ กรุณาอัปโหลดเอง');}
- const variants=native?p.variants.map(v=>({sku:String(v.sku||''),image_url:remoteImage(v.image?.url)||'',attributes:(v.attributes||[]).map(a=>({key:String(a.key),value:String(a.value)})),price:cents(v.markupPrice??v.price),weight:v.weight==null?'':String(v.weight),dimensions:v.dimensions?Object.entries(v.dimensions).map(([k,v])=>`${k}: ${v}`).join(' · '):'',available:v.isActive!==false&&Number(v.remainingQuantity??v.quantity??1)>0})):[];
+ const mappedVariants=native?p.variants.map(v=>({sku:String(v.sku||''),image_url:remoteImage(v.image?.url)||'',attributes:(Array.isArray(v.attributes)?v.attributes:[]).map(a=>({key:String(a?.key??'').trim(),value:String(a?.value??'').trim()})).filter(a=>a.key||a.value),price:cents(v.markupPrice??v.price),weight:v.weight==null?'':String(v.weight),dimensions:v.dimensions?Object.entries(v.dimensions).map(([k,v])=>`${k}: ${v}`).join(' · '):'',available:v.isActive!==false&&Number(v.remainingQuantity??v.quantity??1)>0})):[];
+ // A single attribute-free inventory row is the base product, not a buyer option.
+ const baseVariant=mappedVariants.length===1&&mappedVariants[0].attributes.length===0?mappedVariants[0]:null;
+ const variants=baseVariant?[]:mappedVariants;
+ if(variants.some(v=>!v.attributes.length||v.attributes.some(a=>!a.key||!a.value)))throw new Error('ต้นทางมีรายการตัวเลือกแต่ข้อมูลคุณลักษณะไม่ครบ กรุณาตรวจและเพิ่มข้อมูลด้วยตนเอง');
+ if(baseVariant){
+  const specs=[baseVariant.sku?`SKU: ${baseVariant.sku}`:'',baseVariant.weight?`น้ำหนัก: ${baseVariant.weight}`:'',baseVariant.dimensions?`ขนาด: ${baseVariant.dimensions}`:''].filter(Boolean);
+  if(specs.length)warnings.push('ข้อมูลรายการพื้นฐานจากต้นทาง (ไม่ใช่ตัวเลือกย่อย): '+specs.join(' · ')+' · ตรวจสอบหน่วยกับต้นทางก่อนนำไปใช้');
+ }
  if(variants.length)warnings.push('ตรวจราคา ตัวเลือก น้ำหนัก และหน่วยขนาดกับต้นทางก่อนยืนยัน สต็อกไม่ซิงก์อัตโนมัติ');
  if(!content.text)warnings.push('ไม่พบรายละเอียดข้อความ กรุณาเพิ่มข้อมูลสินค้า');
  const offer=Array.isArray(p.offers)?p.offers[0]:p.offers;
- const price=native?cents(p.minMarkupPrice??p.minPrice):(offer?.priceCurrency==='THB'?cents(offer.price):null);
+ const price=native?(cents(p.minMarkupPrice??p.minPrice)??baseVariant?.price??null):(offer?.priceCurrency==='THB'?cents(offer.price):null);
  if(gallery.length>40||variants.length>100||content.html.length>100000)throw new Error('ข้อมูลสินค้ามากกว่าขีดจำกัดที่รองรับ กรุณาเพิ่มข้อมูลด้วยตนเอง');
  return {name:p.name.slice(0,180),description:content.text,description_html:content.html,gallery,variants,price,category:native?(p.categoryPath||[]).map(c=>c.name).join(' / '):String(p.category||''),source_currency:native?'THB':offer?.priceCurrency||null,image_detected:gallery.length>0,source_url:sourceURL,warnings:[...new Set(warnings)],imported_at:new Date().toISOString()};
 }

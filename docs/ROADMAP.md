@@ -123,3 +123,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Keep current data cancels replacement without discarding edits. Apply replaces source fields in the form, preserves checkout URL and requires the existing draft confirmation/media-import flow before publication.
 - Review does not write product records or copy media; it fetches source data and displays image previews. No background synchronization or persisted provenance history yet. Description comparison is textual, not a visual rich-content diff.
 - DOM integration coverage verifies cancel, apply, retained checkout URL, escaped content and publication gate. Local suite now has 25 passing tests; mobile stacking is implemented but real-device visual QA remains pending.
+
+### Base SKU import correction
+- ThaiMart may encode a single-option product as one inventory variant with no attributes. Import now treats that row as the base product, returning no buyer variants while retaining gallery images and the top-level price (falling back to the row price when absent).
+- SKU/weight/dimensions from that base row appear in the import review notes for manual checking; they are not added to the seller's description automatically. Genuine attribute-based options remain even when only one option exists. Ambiguous multiple or incomplete attribute rows fail with a clear error instead of inventing choices.
+- Confirmed against public HTML of product 6a572a199c8506495ec55277: THB 59, seven gallery images, zero buyer options. Existing saved products are not automatically rewritten; re-read and review in the editor to update them. Regression suite: 26 passing tests.
