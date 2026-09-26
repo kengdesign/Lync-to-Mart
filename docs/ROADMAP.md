@@ -139,3 +139,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Overview analytics exports the currently displayed 7/30-day report with shop/product IDs, dates, Bangkok timezone, names, current statuses, counts and a raw-click disclosure. Includes zero-click products and deleted historical rows returned by the owner-scoped API.
 - UTF-8 BOM, quoted multiline cells and formula-leading text escaping support spreadsheet use. Download stays disabled during loading, failures and empty reports; stale responses cannot replace the selected report.
 - No additional API, collection, billing or sales attribution. Tests cover CSV formatting/formula safety and UI loading/race/retry behavior; suite: 30 passing tests.
+
+### Referenced Shopee image host and empty-gallery publishing UX
+- Product 6aa8a98ed792ee0753ff3dba references four public cf.shopee.co.th image URLs in ThaiMart's product data. Added that exact HTTPS hostname to the shared media allowlist, editor sanitizer and CSP; no wildcard, credentials, custom ports or redirect following allowed.
+- Verified extraction yields four images/24 options and downloaded the actual cover as JPEG. Upload size/signature/ownership checks remain in place.
+- Editor disables publish and published-status option when gallery is empty, permits draft saves and gives accurate zero-image feedback. Bulk publication rejects records without a cover. Existing saved content is not automatically reimported or unpublished.
+- This UI gate does not change the legacy direct product API's allowance for image-free products. Existing test fixtures reflect gallery requirements in the editor and bulk UI.

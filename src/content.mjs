@@ -2,7 +2,7 @@ import {youtubeID,youtubeHTML} from '../public/video.js';
 import {parseFragment} from 'parse5';
 import {escape as e,safeURL} from './security.mjs';
 export const imageURL=key=>'/media/'+encodeURIComponent(key);
-export const remoteImage=raw=>safeURL(raw,['img-cdn.thaimart.com']);
+export const remoteImage=raw=>safeURL(raw,['img-cdn.thaimart.com','cf.shopee.co.th']);
 export function localImageKey(raw){try{if(!raw.startsWith('/media/'))return null;const key=decodeURIComponent(raw.slice(7));return /^[a-zA-Z0-9-]+\/[a-zA-Z0-9-]+$/.test(key)?key:null;}catch{return null;}}
 export function plainHTML(text){return '<p>'+e(text||'').replace(/\r\n?/g,'\n').replace(/\n/g,'<br>')+'</p>';}
 export function sanitizeContent(input,{remote=false}={}){

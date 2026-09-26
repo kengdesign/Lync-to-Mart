@@ -53,7 +53,7 @@ test('rescan compares unsaved edits, cancel preserves them, accept keeps checkou
  const tick=async()=>{for(let i=0;i<10&&!document.querySelector('[data-keep]');i++)await new Promise(r=>setTimeout(r,0));assert.ok(document.querySelector('[data-keep]'));};
  try{
   const editor=createProductEditor({api:async()=>{},send,shopId:()=> 'shop',onSaved:async()=>{},toast(){}});
-  editor.edit({id:'saved',name:'เดิม',price:100,status:'published',source_url:draft.source_url,checkout_url:'https://thaimart.com/buy?affiliate=keep',description_html:'<p>รายละเอียดเดิม</p>'});
+  editor.edit({id:'saved',name:'เดิม',price:100,status:'published',gallery:[{key:'alice/image'}],source_url:draft.source_url,checkout_url:'https://thaimart.com/buy?affiliate=keep',description_html:'<p>รายละเอียดเดิม</p>'});
   document.querySelector('#pname').value='แก้ไว้ยังไม่บันทึก <img onerror=alert(1)>';
   const originalForm=document.querySelector('#product-form');const cancel=document.querySelector('#rescan').onclick();await tick();
   assert.match(document.querySelector('.import-review').textContent,/แก้ไว้ยังไม่บันทึก/);assert.match(document.querySelector('.import-review').textContent,/ไม่ระบุราคา/);assert.equal(document.querySelector('.import-review [onerror]'),null);assert.equal(document.querySelector('#save-product').disabled,true);
@@ -71,5 +71,12 @@ test('deleting locks save and close until completion and restores editor after f
  const deleting=document.querySelector('#delete-product').onclick(),form=document.querySelector('form');assert.ok([...modal.querySelectorAll('button,input,select,textarea')].every(el=>el.disabled));
  await form.onsubmit({preventDefault(){},target:form});document.querySelector('[data-close]').onclick();assert.equal(saves,0);assert.equal(modal.open,true);reject(new Error('ลบไม่สำเร็จ'));await deleting;assert.match(document.querySelector('#product-error').textContent,/ลบไม่สำเร็จ/);assert.equal(document.querySelector('#save-product').disabled,false);
  const retry=document.querySelector('#delete-product').onclick();resolve({ok:true});await retry;assert.equal(modal.open,false);assert.equal(loaded,1);
+ }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}dom.window.close();}
+});
+
+test('saved empty gallery never claims image import success and cannot publish through editor',async()=>{
+ const dom=new JSDOM('<dialog id="editor"></dialog>',{url:'https://mart.test'}),previous={};for(const name of ['document','window','DOMParser','FormData']){previous[name]=globalThis[name];globalThis[name]=dom.window[name];}const modal=document.querySelector('dialog');modal.showModal=()=>modal.open=true;modal.close=()=>modal.open=false;let writes=0;
+ try{createProductEditor({api:async()=>{},send:async()=>{writes++;},shopId:()=> 'shop',onSaved:async()=>{},toast(){}}).edit({id:'saved',name:'สินค้า',source_url:'https://thaimart.com/products/6aa8a98ed792ee0753ff3dba',gallery:[],_import_ready:true});
+ assert.match(modal.textContent,/บันทึกฉบับร่างแล้ว แต่ยังไม่มีรูปสินค้า/);assert.doesNotMatch(modal.textContent,/นำเข้ารูปและบันทึกฉบับร่างสำเร็จแล้ว/);const publish=document.querySelector('[data-save-status="published"]');assert.ok(publish.disabled);assert.ok(document.querySelector('#pstatus [value="published"]').disabled);const form=document.querySelector('form');await form.onsubmit({preventDefault(){},target:form,submitter:publish});assert.equal(writes,0);assert.match(document.querySelector('#product-error').textContent,/เพิ่มรูปปก/);
  }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}dom.window.close();}
 });

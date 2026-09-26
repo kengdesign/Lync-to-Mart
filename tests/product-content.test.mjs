@@ -44,3 +44,10 @@ test('single inventory row without attributes is a base product, while real sing
  assert.throws(()=>parse({...base,variants:[base.variants[0],base.variants[0]]}),/คุณลักษณะไม่ครบ/);
  assert.throws(()=>parse({...base,variants:[{...real,attributes:[{key:'สี',value:''}]}]}),/คุณลักษณะไม่ครบ/);
 });
+
+test('ThaiMart gallery can reference exact Shopee CDN host while unrelated hosts remain blocked',()=>{
+ const urls=Array.from({length:4},(_,i)=>'https://cf.shopee.co.th/file/photo-'+i),p={id,name:'แผ่นทางเท้า',description:`<p>รายละเอียด</p><img src="${urls[0]}">`,images:urls.map(url=>({url})),variants:[],minMarkupPrice:3565};
+ const html='<script>self.__next_f.push('+JSON.stringify([1,'b:'+JSON.stringify(p)+'\n'])+')</script>',result=extractProduct(html,'https://thaimart.com/products/'+id);
+ assert.deepEqual(result.gallery.map(g=>g.url),urls);assert.match(result.description_html,/cf.shopee.co.th/);
+ for(const src of ['https://cf.shopee.co.th.evil.test/file/x','https://evil.test/file/x','http://cf.shopee.co.th/file/x','https://user@cf.shopee.co.th/file/x'])assert.equal(sanitizeContent(`<img src="${src}">`,{remote:true}).html,'');
+});
