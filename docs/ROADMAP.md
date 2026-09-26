@@ -102,3 +102,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Progressive navigation replaces only the catalog, retains shop branding above, supports history/back, aborts stale search requests and falls back to real links/forms without JavaScript.
 - Compact responsive 4/3/2/1-column cards, one cover image, complete extra images/details and variants available on expansion. No source content removed.
 - Integration tests cover 25 products over three pages, whole-shop search, canonical/schema, empty results, invalid pages and preview authorization.
+
+### Imported product confirmation gate
+- Fresh imports and rescans require confirming a draft save before publishing. Publish/draft shortcuts and the status selector stay locked until media copies and save complete.
+- All editor controls lock during upload/save; saved imports reopen from the owner-only product API with a ready-to-publish notice.
+- Failed media imports remain unpublishable and can retry, preserving completed copies and variant associations. Server rejects unresolved gallery/variant image URLs.
+- DOM integration test covers blocked publish, in-flight locks, partial failure, retry and draft-to-published flow; API test covers incomplete media and owner-only readback.

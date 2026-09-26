@@ -106,6 +106,7 @@ async function handle(req,env,ctx){
   }
   const pm=p.match(/^\/api\/products\/([^/]+)$/);
   if(pm){const product=await query(env,'SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND s.owner_id=?',pm[1],user.id).first();if(!product)fail('ไม่พบสินค้า',404);
+   if(method==='GET')return json(productRecord(product));
    if(method==='PUT'){const data=await productData(await body(req),env,user,product);if(await findDuplicate(env,product.shop_id,product.id,data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);const updated=await query(env,`UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,checkout_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS(${duplicateSQL})`,...data,product.id,product.shop_id,product.id,productIdentity(data[3])).run();if(!updated.meta.changes)fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);return json({ok:true});}
    if(method==='DELETE'){await query(env,'DELETE FROM products WHERE id=?',product.id).run();return json({ok:true});}
   }
@@ -142,12 +143,13 @@ async function productData(b,env,user,existing={}){
  const content=sanitizeContent(b.description_html===undefined?plainHTML(clean(b.description,30000)):b.description_html);
  const gallery=b.gallery===undefined?(b.image_key?[{key:b.image_key,alt:name}]:[]):b.gallery;
  if(!Array.isArray(gallery)||gallery.length>40)fail('เพิ่มรูปแกลเลอรีได้ไม่เกิน 40 รูป');
+ if(gallery.some(g=>g?.url&&!g?.key))fail('กรุณานำเข้ารูปสินค้าให้ครบก่อนบันทึก',422);
  const images=gallery.map(g=>({key:clean(g.key,150),alt:clean(g.alt,180)}));
  const keys=[...new Set([...images.map(g=>g.key),...content.keys])];
  for(const key of keys){if(!key||!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,user.id).first())fail('รูปภาพไม่ใช่ของบัญชีนี้',403);}
  if(b.description_html&&/<(?:img|video)\b[^>]*src=["']https?:/i.test(b.description_html))fail('กรุณานำเข้ารูปในรายละเอียดให้ครบก่อนบันทึก',422);
  const variants=b.variants||[];if(!Array.isArray(variants)||variants.length>100)fail('รองรับตัวเลือกสินค้าไม่เกิน 100 แบบ');
- const seen=new Set();const vs=variants.map(v=>{if(!Array.isArray(v.attributes)||!v.attributes.length||v.attributes.length>10)fail('กรอกคุณลักษณะของตัวเลือกสินค้า');
+ const seen=new Set();const vs=variants.map(v=>{if(v.image_url&&!v.image_key)fail('กรุณานำเข้ารูปตัวเลือกให้ครบก่อนบันทึก',422);if(!Array.isArray(v.attributes)||!v.attributes.length||v.attributes.length>10)fail('กรอกคุณลักษณะของตัวเลือกสินค้า');
   const attributes=v.attributes.map(a=>({key:clean(a.key,60),value:clean(a.value,120)}));if(attributes.some(a=>!a.key||!a.value)||new Set(attributes.map(a=>a.key)).size!==attributes.length)fail('ชื่อและค่าตัวเลือกต้องครบและไม่ซ้ำ');
   const signature=JSON.stringify([...attributes].sort((a,b)=>a.key.localeCompare(b.key)));if(seen.has(signature))fail('มีตัวเลือกสินค้าแบบเดียวกันซ้ำ');seen.add(signature);
   return {sku:clean(v.sku,100),image_key:clean(v.image_key,150),attributes,price:parsePrice(v.price),weight:clean(v.weight,100),dimensions:clean(v.dimensions,150),available:v.available!==false};
