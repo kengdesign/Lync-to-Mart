@@ -76,3 +76,5 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 งานถัดไปที่ยังไม่เปิดใช้: QR/share assets, import provenance และตรวจรายการซ้ำ/ความต่างก่อนอัปเดต, SSO Lyncto, AI fact-based, ระบบสมาชิกและชำระเงิน ทั้งนี้รายละเอียด extraction เก่าในแผนด้านบนให้ยึดสถานะล่าสุดใน THAIMART-INTEGRATION.md
 
 ภาพปก: เลื่อนจุดโฟกัสแนวตั้งได้ด้วย pointer drag และ range keyboard, กลับกึ่งกลาง, บันทึก cover_position_y 0–100 ค่าเริ่มต้น 50 ผ่าน migration 0004; กรอบ 3:1 ตรงกันทั้ง editor/preview/public โดยไม่เปลี่ยนต้นฉบับ (OG image ยังเป็นไฟล์ต้นฉบับ)
+
+รอบแชร์หน้าร้าน: QR Code ลิงก์ตรง /shop/{slug}, ดาวน์โหลด PNG/SVG, native share และ clipboard fallback; สร้างในระบบ ไม่ใช้บริการ QR ภายนอก ไม่บันทึก events ขณะสร้าง QR และไม่แยกยอดสแกนออกจาก page view ยังไม่ใช่ Lyncto dynamic QR เมื่อย้ายโดเมนต้องสร้างใหม่

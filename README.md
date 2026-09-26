@@ -23,6 +23,8 @@ Staging: https://lync-to-mart-staging.paiboon.workers.dev/ — ยังไม�
 - อ่านข้อมูลจริงโดยไม่ใช้ AI แต่งรายละเอียด ทดสอบกับ HTML ของลิงก์ตัวอย่าง 3 รายการ ดู docs/THAIMART-INTEGRATION.md
 - หน้าแพ็กเกจแสดงข้อเสนอ Free / Starter / Growth / Brand โดยยังไม่เปิดขาย
 
+- แชร์หน้าร้าน: QR PNG/SVG และ native share พร้อมคัดลอกลิงก์ในเมนูหน้าร้าน; ปุ่มดาวน์โหลด/แชร์เปิดหลังเผยแพร่ร้าน
+
 ## รันในเครื่อง
 
 ต้องมี Node.js 24 ขึ้นไป:
@@ -57,7 +59,7 @@ npm run dev
 
 ## ขอบเขตสำคัญ
 
-ยังไม่มี: สมัครสมาชิกสาธารณะ, เชื่อมบัญชี Lyncto/WordPress, social login, กู้รหัสผ่าน, AI credits, AI generation, Stripe subscriptions/webhooks, VAT/WHT workflow, API sync Thaimart, QR generator, LINE album, creator/affiliate attribution, custom domains, admin console, backups/monitoring/retention jobs
+ยังไม่มี: สมัครสมาชิกสาธารณะ, เชื่อมบัญชี Lyncto/WordPress, social login, กู้รหัสผ่าน, AI credits, AI generation, Stripe subscriptions/webhooks, VAT/WHT workflow, API sync Thaimart, LINE album, creator/affiliate attribution, custom domains, admin console, backups/monitoring/retention jobs
 
 ไม่มีการเก็บบัตรหรือรับเงิน ไม่มีการแก้ DNS หรือแตะ production และไม่มี secrets อยู่ในแพ็กนี้
 

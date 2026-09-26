@@ -1,3 +1,4 @@
+import {shopShare} from './share.mjs';
 import {sanitizeContent,plainHTML,productRecord,remoteImage} from './content.mjs';
 import {storefront} from './storefront.mjs';
 import {hash,verifyPassword,safeURL,escape as e} from './security.mjs';
@@ -73,8 +74,9 @@ async function handle(req,env,ctx){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
    const id=crypto.randomUUID();try{const r=await query(env,'INSERT INTO shops(id,owner_id,slug,name) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM shops WHERE owner_id=?)<?',id,user.id,slug,name,user.id,plan.shops).run();if(!r.meta.changes)fail('จำนวนร้านครบตามแพ็กเกจแล้ว',409);}catch(err){if(err.message.includes('UNIQUE'))fail('ชื่อ URL นี้ถูกใช้แล้ว',409);throw err;}return json({id},201);
   }
-  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats))?$/);
+  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share))?$/);
   if(sm){const shop=await shopFor(env,sm[1],user);
+   if(sm[2]==='share'&&method==='GET')return json(shopShare(shop,url.origin));
    if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}
     const coverY=b.cover_position_y===undefined?shop.cover_position_y:Number(b.cover_position_y);if(b.cover_position_y===null||b.cover_position_y===''||!Number.isInteger(coverY)||coverY<0||coverY>100)fail('ตำแหน่งภาพปกต้องอยู่ระหว่าง 0–100');
     await query(env,'UPDATE shops SET name=?,description=?,line_url=?,published=?,logo_key=?,cover_key=?,seo_title=?,seo_description=?,cover_position_y=? WHERE id=? AND owner_id=?',name,clean(b.description,1500),line,b.published===true?1:0,images.logo_key,images.cover_key,b.seo_title===undefined?shop.seo_title:clean(b.seo_title,100),b.seo_description===undefined?shop.seo_description:clean(b.seo_description,200),coverY,shop.id,user.id).run();return json({ok:true});}
