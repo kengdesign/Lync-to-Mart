@@ -47,7 +47,7 @@ async function handle(req,env,ctx){
  }
  if(p.startsWith('/go/')&&method==='GET'){
   const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
-  const target=safeURL(product.source_url,hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
+  const target=safeURL(product.checkout_url||product.source_url,hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
   ctx.waitUntil(event(env,product.shop_id,product.id,'buy_click').catch(()=>{}));return new Response(null,{status:302,headers:{Location:target,'Cache-Control':'no-store','Referrer-Policy':'strict-origin-when-cross-origin'}});
  }
  if(p.startsWith('/media/')&&['GET','HEAD'].includes(method)){
@@ -84,12 +84,12 @@ async function handle(req,env,ctx){
    if(sm[2]==='stats'&&method==='GET')return json((await query(env,"SELECT day,kind,COUNT(*) AS count FROM events WHERE shop_id=? AND day>=date('now','+7 hours','-29 days') GROUP BY day,kind ORDER BY day",shop.id).all()).results);
    if(sm[2]==='products'&&method==='POST'){
     const b=await body(req),data=await productData(b,env,user),id=crypto.randomUUID();
-    const result=await query(env,`INSERT INTO products(id,shop_id,name,description,price,source_url,image_key,status,description_html,gallery_json,variants_json,category) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM products p JOIN shops s ON s.id=p.shop_id WHERE s.owner_id=?)<?`,id,shop.id,...data,user.id,plan.products).run();if(!result.meta.changes)fail('จำนวนสินค้าครบตามแพ็กเกจแล้ว',409);return json({id},201);
+    const result=await query(env,`INSERT INTO products(id,shop_id,name,description,price,source_url,image_key,status,description_html,gallery_json,variants_json,category,checkout_url) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM products p JOIN shops s ON s.id=p.shop_id WHERE s.owner_id=?)<?`,id,shop.id,...data,user.id,plan.products).run();if(!result.meta.changes)fail('จำนวนสินค้าครบตามแพ็กเกจแล้ว',409);return json({id},201);
    }
   }
   const pm=p.match(/^\/api\/products\/([^/]+)$/);
   if(pm){const product=await query(env,'SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND s.owner_id=?',pm[1],user.id).first();if(!product)fail('ไม่พบสินค้า',404);
-   if(method==='PUT'){const data=await productData(await body(req),env,user);await query(env,'UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',...data,product.id).run();return json({ok:true});}
+   if(method==='PUT'){const data=await productData(await body(req),env,user,product);await query(env,'UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,checkout_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',...data,product.id).run();return json({ok:true});}
    if(method==='DELETE'){await query(env,'DELETE FROM products WHERE id=?',product.id).run();return json({ok:true});}
   }
   if(p==='/api/import'&&method==='POST'){
@@ -114,7 +114,11 @@ async function handle(req,env,ctx){
  if(p==='/'||p==='/dashboard')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
  return env.ASSETS.fetch(req);
 }
-async function productData(b,env,user){
+async function productData(b,env,user,existing={}){
+ const rawCheckout=b.checkout_url===undefined?(existing.checkout_url||''):b.checkout_url;
+ if(typeof rawCheckout!=='string'||rawCheckout.length>2000)fail('ลิงก์ซื้อสินค้าต้องเป็นข้อความไม่เกิน 2,000 ตัวอักษร');
+ const checkout=rawCheckout.trim()?safeURL(rawCheckout.trim(),hosts(env.CHECKOUT_HOSTS)):'';
+ if(checkout===null)fail('ลิงก์ซื้อสินค้าต้องเป็น HTTPS บนโดเมน Thaimart ที่ระบบรองรับ');
  const name=clean(b.name,180),source=safeURL(b.source_url,hosts(env.CHECKOUT_HOSTS));if(!name)fail('กรอกชื่อสินค้า');if(!source)fail('ลิงก์สินค้าไม่ตรงกับโดเมน Thaimart ที่ตั้งค่าไว้');
  const parsePrice=v=>{if(v===null||v===undefined||v==='')return null;const n=Number(v);if(!Number.isSafeInteger(n)||n<0||n>10000000000)fail('ราคาไม่ถูกต้อง');return n;};
  if(typeof b.description_html==='string'&&b.description_html.length>100000)fail('รายละเอียดสินค้าเกิน 100,000 ตัวอักษร');
@@ -133,7 +137,7 @@ async function productData(b,env,user){
  });
  for(const v of vs){if(v.image_key&&!images.some(g=>g.key===v.image_key))fail('รูปตัวเลือกต้องอยู่ในแกลเลอรีสินค้า');}
  const prices=vs.map(v=>v.price).filter(v=>v!==null),price=prices.length?Math.min(...prices):parsePrice(b.price);
- return [name,content.text,price,source,images[0]?.key||'',b.status==='published'?'published':'draft',content.html,JSON.stringify(images),JSON.stringify(vs),clean(b.category,500)];
+ return [name,content.text,price,source,images[0]?.key||'',b.status==='published'?'published':'draft',content.html,JSON.stringify(images),JSON.stringify(vs),clean(b.category,500),checkout];
 }
 async function saveImage(source,env,user,video=false){
  const limit=video?20000000:5000000;if(Number(source.headers.get('content-length'))>limit)fail(video?'วิดีโอต้องไม่เกิน 20 MB':'รูปภาพต้องไม่เกิน 5 MB',413);
