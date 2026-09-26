@@ -128,3 +128,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - ThaiMart may encode a single-option product as one inventory variant with no attributes. Import now treats that row as the base product, returning no buyer variants while retaining gallery images and the top-level price (falling back to the row price when absent).
 - SKU/weight/dimensions from that base row appear in the import review notes for manual checking; they are not added to the seller's description automatically. Genuine attribute-based options remain even when only one option exists. Ambiguous multiple or incomplete attribute rows fail with a clear error instead of inventing choices.
 - Confirmed against public HTML of product 6a572a199c8506495ec55277: THB 59, seven gallery images, zero buyer options. Existing saved products are not automatically rewritten; re-read and review in the editor to update them. Regression suite: 26 passing tests.
+
+### Dashboard product pagination
+- Owner product management displays 20 rows by default, with 50/100 choices, previous/next and direct page selection. Search and status filtering still cover the entire loaded shop catalog, preserving featured order.
+- Selection is explicitly limited to the visible page; changing page/filter/size rebuilds and clears selection. Bulk updates clamp the page when filtered results shrink.
+- This reduces rendered dashboard rows; the owner API still returns all shop products. Public storefront pagination/SEO is unchanged. Responsive controls implemented; real-device visual QA remains pending.
+- Tests cover 105 products, final pages, full-catalog search, filtered counts, empty results, boundary controls and direct page selection. Suite: 28 passing tests.
