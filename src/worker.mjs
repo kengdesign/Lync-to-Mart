@@ -1,3 +1,4 @@
+import {accountUsage,STORAGE_LIMIT} from './usage.mjs';
 import {productIdentity,duplicateSQL,findDuplicate} from './duplicates.mjs';
 import {shopShare} from './share.mjs';
 import {sanitizeContent,plainHTML,productRecord,remoteImage} from './content.mjs';
@@ -70,6 +71,7 @@ async function handle(req,env,ctx){
  if(p.startsWith('/api/')){
   const user=await owner(req,env),plan=await planFor(env,user);
   if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:false}});}
+  if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
   if(p==='/api/shops'&&method==='POST'){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
@@ -161,7 +163,7 @@ async function saveImage(source,env,user,video=false){
  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}
  let mime;if(video){const h=new TextDecoder().decode(bytes.slice(4,12));if(h.slice(0,4)!=='ftyp'||!['isom','iso2','mp41','mp42','avc1','M4V '].includes(h.slice(4)))fail('กรุณาใช้ไฟล์ MP4 (H.264/AAC)');mime='video/mp4';}else if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)mime='image/jpeg';else if([137,80,78,71,13,10,26,10].every((x,i)=>bytes[i]===x))mime='image/png';else if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')mime='image/webp';else fail('รองรับรูป JPG, PNG และ WebP เท่านั้น');
  const key=`${user.id}/${crypto.randomUUID()}`;
- const reserved=await query(env,'INSERT INTO media(key,owner_id,mime,size) SELECT ?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM media WHERE owner_id=?)+?<=500000000',key,user.id,mime,size,user.id,size).run();if(!reserved.meta.changes)fail('พื้นที่รูปภาพและวิดีโอเต็มแล้ว',409);
+ const reserved=await query(env,'INSERT INTO media(key,owner_id,mime,size) SELECT ?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM media WHERE owner_id=?)+?<=?',key,user.id,mime,size,user.id,size,STORAGE_LIMIT).run();if(!reserved.meta.changes)fail('พื้นที่รูปภาพและวิดีโอเต็มแล้ว',409);
  try{await env.MEDIA.put(key,bytes,{httpMetadata:{contentType:mime}});}catch(err){await query(env,'DELETE FROM media WHERE key=?',key).run();throw err;}return key;
 }
 export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};

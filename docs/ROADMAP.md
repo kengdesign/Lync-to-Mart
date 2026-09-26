@@ -90,3 +90,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Import, rescan and save preflight detect the same ThaiMart product ID within a shop, ignoring share/tracking query strings and fragments. Seller can open the existing draft/published item without automatic overwrite.
 - Server-side atomic INSERT/UPDATE guards also prevent simultaneous duplicate saves. Different shops may carry the same product; existing data is not deleted or merged.
 - Integration coverage includes URL variants, self-edit, cross-owner isolation, tracking URL preservation, concurrent creation and re-adding deleted products. No migration required.
+
+### Account usage and package visibility (staging)
+- Package page displays authenticated account totals for shops, all products (draft + published), and stored image/video bytes, with remaining quota, 80% warning state, full state and manual refresh.
+- Per-store product breakdown and empty/error states. API derives limits from the current plan; media usage and upload enforcement share the same 500 MB constant.
+- Stored files include unused uploads; removing images/products does not reclaim storage automatically. Billing/pricing remains a staging proposal; no payments or plan-changing API added.
+- Integration tests cover empty accounts, multiple stores, owner isolation, actual media totals and changed plan limits.
