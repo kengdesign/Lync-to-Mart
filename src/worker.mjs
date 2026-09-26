@@ -77,8 +77,18 @@ async function handle(req,env,ctx){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
    const id=crypto.randomUUID();try{const r=await query(env,'INSERT INTO shops(id,owner_id,slug,name) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM shops WHERE owner_id=?)<?',id,user.id,slug,name,user.id,plan.shops).run();if(!r.meta.changes)fail('จำนวนร้านครบตามแพ็กเกจแล้ว',409);}catch(err){if(err.message.includes('UNIQUE'))fail('ชื่อ URL นี้ถูกใช้แล้ว',409);throw err;}return json({id},201);
   }
-  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate))?$/);
+  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status))?$/);
   if(sm){const shop=await shopFor(env,sm[1],user);
+   if(sm[2]==='bulk-status'&&method==='POST'){
+    const b=await body(req);
+    if(!b||!['draft','published'].includes(b.status)||!Array.isArray(b.ids)||!b.ids.length||b.ids.length>100||b.ids.some(id=>typeof id!=='string'||!id.trim()||id.length>100)||new Set(b.ids).size!==b.ids.length)fail('เลือกสินค้า 1–100 รายการและสถานะที่ถูกต้อง');
+    const ids=JSON.stringify(b.ids),rows=(await query(env,'SELECT * FROM products WHERE shop_id=? AND id IN (SELECT value FROM json_each(?))',shop.id,ids).all()).results;
+    if(rows.length!==b.ids.length)fail('บางรายการไม่มีอยู่ในร้านแล้ว กรุณาโหลดรายการใหม่',409);
+    if(b.status==='published')for(const row of rows)await productData({...productRecord(row),status:'published'},env,user,row);
+    const result=await query(env,`UPDATE products SET status=?,updated_at=CURRENT_TIMESTAMP WHERE shop_id=? AND id IN (SELECT value FROM json_each(?)) AND (SELECT COUNT(*) FROM products WHERE shop_id=? AND id IN (SELECT value FROM json_each(?)))=?`,b.status,shop.id,ids,shop.id,ids,b.ids.length).run();
+    if(result.meta.changes!==b.ids.length)fail('รายการสินค้าเปลี่ยนไป กรุณาโหลดรายการใหม่',409);
+    return json({ids:b.ids,status:b.status,count:b.ids.length});
+   }
    if(sm[2]==='duplicate'&&method==='POST'){const b=await body(req);const duplicate=await findDuplicate(env,shop.id,clean(b.exclude_id,100),b.url);return json({product:duplicate?productRecord(duplicate):null});}
    if(sm[2]==='share'&&method==='GET')return json(shopShare(shop,url.origin));
    if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}

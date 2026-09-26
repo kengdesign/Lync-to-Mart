@@ -88,3 +88,9 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .store-body .catalog-tools>button{margin:0;align-self:end}
 
 .featured-label{display:block;color:#b51c1a;font-size:.72rem;font-weight:600;line-height:1.6;margin:4px 0 8px}.product-row-actions{display:flex;flex-wrap:wrap;gap:4px;min-width:160px}.product-row-actions button{font-size:.8rem;white-space:nowrap}.product-row-actions button[aria-pressed=true]{background:#fff0ef;border-radius:8px}
+
+/* Saved-product bulk actions */
+.bulk-products{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--line,#e5e7eb);flex-wrap:wrap}
+.bulk-products>span{font-size:13px;color:#62646b}.bulk-products .actions{flex-wrap:wrap;gap:8px}
+.selection-cell{width:44px;text-align:center}.selection-cell input{width:20px;height:20px;padding:0;margin:0;accent-color:#E32321;vertical-align:middle;cursor:pointer}
+@media(max-width:600px){.bulk-products .actions{width:100%}.bulk-products .actions button{flex:1;font-size:13px;padding:10px}.bulk-products .actions [data-clear]{flex-basis:100%}}
