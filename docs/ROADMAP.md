@@ -134,3 +134,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Selection is explicitly limited to the visible page; changing page/filter/size rebuilds and clears selection. Bulk updates clamp the page when filtered results shrink.
 - This reduces rendered dashboard rows; the owner API still returns all shop products. Public storefront pagination/SEO is unchanged. Responsive controls implemented; real-device visual QA remains pending.
 - Tests cover 105 products, final pages, full-catalog search, filtered counts, empty results, boundary controls and direct page selection. Suite: 28 passing tests.
+
+### Product click CSV export
+- Overview analytics exports the currently displayed 7/30-day report with shop/product IDs, dates, Bangkok timezone, names, current statuses, counts and a raw-click disclosure. Includes zero-click products and deleted historical rows returned by the owner-scoped API.
+- UTF-8 BOM, quoted multiline cells and formula-leading text escaping support spreadsheet use. Download stays disabled during loading, failures and empty reports; stale responses cannot replace the selected report.
+- No additional API, collection, billing or sales attribution. Tests cover CSV formatting/formula safety and UI loading/race/retry behavior; suite: 30 passing tests.
