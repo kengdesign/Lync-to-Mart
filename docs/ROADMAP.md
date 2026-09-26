@@ -85,3 +85,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Overview ranks products by outbound Thaimart clicks with 7/30-day selection, inclusive of today in Asia/Bangkok.
 - Owner-only API; existing zero-click products and historical deleted-product counts retained. Counts include repeat clicks and may include bots; they do not represent sales, customers or commission.
 - Covered date boundaries, tenant isolation and deleted products in integration tests. No schema migration required.
+
+### Duplicate ThaiMart products (staging)
+- Import, rescan and save preflight detect the same ThaiMart product ID within a shop, ignoring share/tracking query strings and fragments. Seller can open the existing draft/published item without automatic overwrite.
+- Server-side atomic INSERT/UPDATE guards also prevent simultaneous duplicate saves. Different shops may carry the same product; existing data is not deleted or merged.
+- Integration coverage includes URL variants, self-edit, cross-owner isolation, tracking URL preservation, concurrent creation and re-adding deleted products. No migration required.

@@ -7,7 +7,7 @@ test('owner analytics uses inclusive Thai date windows, isolates shops and retai
   for(const id of ['alice','bob']){await DB.prepare('INSERT INTO users VALUES(?,?,?,?)').bind(id,id+'@example.test','unused','free').run();await DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(await hash(id),id,Math.floor(Date.now()/1000)+3600).run();}
   const {id:shop}=await(await call('/api/shops','POST',{name:'ร้าน',slug:'test-shop'})).json();
   const {id:other}=await(await call('/api/shops','POST',{name:'Other',slug:'other-shop'},'bob')).json();
-  const create=async name=>(await(await call('/api/shops/'+shop+'/products','POST',{name,source_url:'https://thaimart.com/products/6a8489fba9ceed89ab290994',status:'published'})).json()).id;
+  let sourceId=1;const create=async name=>(await(await call('/api/shops/'+shop+'/products','POST',{name,source_url:'https://thaimart.com/products/'+String(sourceId++).padStart(24,'0'),status:'published'})).json()).id;
   const first=await create('A'),zero=await create('B'),deleted=await create('Deleted');
   const add=async(product,offset,kind='buy_click',shopId=shop)=>DB.prepare("INSERT INTO events(id,shop_id,product_id,kind,day) VALUES(?,?,?,?,date('now','+7 hours',?))").bind(crypto.randomUUID(),shopId,product,kind,offset+' days').run();
   await add(first,0);await add(first,-6);await add(first,-7);await add(first,-29);await add(first,-30);await add(first,1);await add(first,0,'view');await add(first,0,'buy_click',other);await add(deleted,0);

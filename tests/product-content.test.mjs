@@ -27,7 +27,7 @@ test('gallery, inline image ownership, variant prices and SSR details round-trip
  await call(`/api/products/${pid}`,'PUT',{...base,status:'draft'});assert.equal((await call('/media/alice%2Fimage','GET',null,false)).status,401);
  const invalid=await call('/api/import','POST',{url:'https://thaimart.com/other'});assert.equal(invalid.status,422);
  // An old product submitted by the old client still stores its text and primary photo.
- r=await call(`/api/shops/${shop}/products`,'POST',{name:'เดิม',source_url:base.source_url,description:'เดิม\nบรรทัดสอง',image_key:'alice/image',price:100});assert.equal(r.status,201);
+ r=await call(`/api/shops/${shop}/products`,'POST',{name:'เดิม',source_url:'https://thaimart.com/products/000000000000000000000001',description:'เดิม\nบรรทัดสอง',image_key:'alice/image',price:100});assert.equal(r.status,201);
  const records=await (await call(`/api/shops/${shop}/products`)).json();assert.ok(records.some(x=>x.name==='เดิม'&&x.description.includes('บรรทัดสอง')&&x.image_key==='alice/image'));
  }finally{DB.close();}
 });
