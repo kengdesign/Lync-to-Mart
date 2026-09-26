@@ -44,10 +44,20 @@ async function handle(req,env,ctx){
   const target=safeURL(product.source_url,hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
   ctx.waitUntil(event(env,product.shop_id,product.id,'buy_click').catch(()=>{}));return new Response(null,{status:302,headers:{Location:target,'Cache-Control':'no-store','Referrer-Policy':'strict-origin-when-cross-origin'}});
  }
- if(p.startsWith('/media/')&&method==='GET'){
-  const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 LIMIT 1",key,key,'/media/'+encodeURIComponent(key)).first();
+ if(p.startsWith('/media/')&&['GET','HEAD'].includes(method)){
+  const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 LIMIT 1",key,key,'src="/media/'+encodeURIComponent(key)+'"').first();
   if(!publicImage){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first())fail('ไม่พบรูปภาพ',404);}
-  const object=await env.MEDIA.get(key);if(!object)fail('ไม่พบรูปภาพ',404);return new Response(object.body,{headers:{'Content-Type':object.httpMetadata?.contentType||'application/octet-stream','Cache-Control':'private, no-store'}});
+  const metadata=await query(env,'SELECT mime,size FROM media WHERE key=?',key).first();if(!metadata)fail('ไม่พบไฟล์',404);
+  const headers={'Content-Type':metadata.mime,'Cache-Control':'private, no-store','Accept-Ranges':'bytes','Content-Length':String(metadata.size)};
+  let range;const requested=req.headers.get('range');
+  if(requested&&method==='GET'){
+   const m=requested.match(/^bytes=(\d*)-(\d*)$/);let start,end;
+   if(m&&(m[1]||m[2])){start=m[1]?Number(m[1]):Math.max(0,metadata.size-Number(m[2]));end=m[1]?(m[2]?Math.min(Number(m[2]),metadata.size-1):metadata.size-1):metadata.size-1;}
+   if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=metadata.size||end<start)return new Response(null,{status:416,headers:{...headers,'Content-Length':'0','Content-Range':`bytes */${metadata.size}`}});
+   range={offset:start,length:end-start+1};headers['Content-Range']=`bytes ${start}-${end}/${metadata.size}`;headers['Content-Length']=String(range.length);
+  }
+  if(method==='HEAD')return new Response(null,{headers});
+  const object=await env.MEDIA.get(key,range?{range}:undefined);if(!object)fail('ไม่พบไฟล์',404);return new Response(object.body,{status:range?206:200,headers});
  }
  if(p.startsWith('/api/')){
   const user=await owner(req,env),plan=await planFor(env,user);
@@ -79,13 +89,13 @@ async function handle(req,env,ctx){
    let product;try{product=extractProduct(await boundedHTML(response),target);}catch(err){fail(err.message,422);}if(!product)fail('ไม่พบข้อมูลสินค้าแบบมีโครงสร้าง กรุณาเพิ่มข้อมูลเอง',422);
    return json({...product,source_url:target,status:'draft',notice:'ตรวจสอบข้อมูลและสิทธิ์ใช้รูป ก่อนยืนยันบันทึก รูปจะถูกคัดลอกมายังร้านของคุณ' });
   }
-  if((p==='/api/media'||p==='/api/media/import')&&method==='POST'){
+  if((p==='/api/media'||p==='/api/media/import'||p==='/api/media/video')&&method==='POST'){
    let source=req;
    if(p.endsWith('/import')){const b=await body(req),target=remoteImage(b.url);if(!target)fail('ไม่รองรับแหล่งรูปภาพนี้',422);
     try{source=await fetch(target,{redirect:'manual',signal:AbortSignal.timeout(12000)});}catch{fail('ดาวน์โหลดรูปไม่สำเร็จ กรุณาลองใหม่หรืออัปโหลดเอง',422);}
     if(!source.ok)fail('ต้นทางไม่อนุญาตให้ดาวน์โหลดรูปนี้ กรุณาอัปโหลดเอง',422);
    }
-   const key=await saveImage(source,env,user);return json({key},201);
+   const key=await saveImage(source,env,user,p.endsWith('/video'));return json({key},201);
   }
 
   return json({error:'ไม่พบรายการที่ขอ'},404);
@@ -104,7 +114,7 @@ async function productData(b,env,user){
  const images=gallery.map(g=>({key:clean(g.key,150),alt:clean(g.alt,180)}));
  const keys=[...new Set([...images.map(g=>g.key),...content.keys])];
  for(const key of keys){if(!key||!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,user.id).first())fail('รูปภาพไม่ใช่ของบัญชีนี้',403);}
- if(b.description_html&&/src=["']https?:/i.test(b.description_html))fail('กรุณานำเข้ารูปในรายละเอียดให้ครบก่อนบันทึก',422);
+ if(b.description_html&&/<(?:img|video)\b[^>]*src=["']https?:/i.test(b.description_html))fail('กรุณานำเข้ารูปในรายละเอียดให้ครบก่อนบันทึก',422);
  const variants=b.variants||[];if(!Array.isArray(variants)||variants.length>100)fail('รองรับตัวเลือกสินค้าไม่เกิน 100 แบบ');
  const seen=new Set();const vs=variants.map(v=>{if(!Array.isArray(v.attributes)||!v.attributes.length||v.attributes.length>10)fail('กรอกคุณลักษณะของตัวเลือกสินค้า');
   const attributes=v.attributes.map(a=>({key:clean(a.key,60),value:clean(a.value,120)}));if(attributes.some(a=>!a.key||!a.value)||new Set(attributes.map(a=>a.key)).size!==attributes.length)fail('ชื่อและค่าตัวเลือกต้องครบและไม่ซ้ำ');
@@ -115,13 +125,14 @@ async function productData(b,env,user){
  const prices=vs.map(v=>v.price).filter(v=>v!==null),price=prices.length?Math.min(...prices):parsePrice(b.price);
  return [name,content.text,price,source,images[0]?.key||'',b.status==='published'?'published':'draft',content.html,JSON.stringify(images),JSON.stringify(vs),clean(b.category,500)];
 }
-async function saveImage(source,env,user){
+async function saveImage(source,env,user,video=false){
+ const limit=video?20000000:5000000;if(Number(source.headers.get('content-length'))>limit)fail(video?'วิดีโอต้องไม่เกิน 20 MB':'รูปภาพต้องไม่เกิน 5 MB',413);
  const reader=source.body?.getReader();if(!reader)fail('ไม่พบรูปภาพ');let size=0,chunks=[];
- while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>5000000){await reader.cancel();fail('รูปภาพต้องไม่เกิน 5 MB',413);}chunks.push(value);}
+ while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();fail(video?'วิดีโอต้องไม่เกิน 20 MB':'รูปภาพต้องไม่เกิน 5 MB',413);}chunks.push(value);}
  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}
- let mime;if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)mime='image/jpeg';else if([137,80,78,71,13,10,26,10].every((x,i)=>bytes[i]===x))mime='image/png';else if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')mime='image/webp';else fail('รองรับรูป JPG, PNG และ WebP เท่านั้น');
+ let mime;if(video){const h=new TextDecoder().decode(bytes.slice(4,12));if(h.slice(0,4)!=='ftyp'||!['isom','iso2','mp41','mp42','avc1','M4V '].includes(h.slice(4)))fail('กรุณาใช้ไฟล์ MP4 (H.264/AAC)');mime='video/mp4';}else if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)mime='image/jpeg';else if([137,80,78,71,13,10,26,10].every((x,i)=>bytes[i]===x))mime='image/png';else if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')mime='image/webp';else fail('รองรับรูป JPG, PNG และ WebP เท่านั้น');
  const key=`${user.id}/${crypto.randomUUID()}`;
- const reserved=await query(env,'INSERT INTO media(key,owner_id,mime,size) SELECT ?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM media WHERE owner_id=?)+?<=500000000',key,user.id,mime,size,user.id,size).run();if(!reserved.meta.changes)fail('พื้นที่รูปภาพเต็มแล้ว',409);
+ const reserved=await query(env,'INSERT INTO media(key,owner_id,mime,size) SELECT ?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM media WHERE owner_id=?)+?<=500000000',key,user.id,mime,size,user.id,size).run();if(!reserved.meta.changes)fail('พื้นที่รูปภาพและวิดีโอเต็มแล้ว',409);
  try{await env.MEDIA.put(key,bytes,{httpMetadata:{contentType:mime}});}catch(err){await query(env,'DELETE FROM media WHERE key=?',key).run();throw err;}return key;
 }
-export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com; style-src 'self'; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};
+export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};

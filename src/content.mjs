@@ -1,3 +1,4 @@
+import {youtubeID,youtubeHTML} from '../public/video.js';
 import {parseFragment} from 'parse5';
 import {escape as e,safeURL} from './security.mjs';
 export const imageURL=key=>'/media/'+encodeURIComponent(key);
@@ -7,8 +8,10 @@ export function plainHTML(text){return '<p>'+e(text||'').replace(/\r\n?/g,'\n').
 export function sanitizeContent(input,{remote=false}={}){
  const keys=new Set(),urls=new Set();let plain=[];
  const allowed=new Set(['p','div','br','h2','h3','h4','ul','ol','li','strong','b','em','i','u','s','blockquote','hr']);
- const blocked=new Set(['script','style','iframe','object','embed','svg','math','template','noscript','video','audio','form']);
+ const blocked=new Set(['script','button','style','object','embed','svg','math','template','noscript','audio','form']);
  function walk(n,depth=0){if(depth>80)return '';if(n.nodeName==='#text'){plain.push(n.value);return e(n.value);}const tag=n.tagName;if(blocked.has(tag))return '';const a=Object.fromEntries((n.attrs||[]).map(x=>[x.name,x.value]));
+  if(tag==='iframe'){const id=youtubeID(a.src);return !remote&&id?youtubeHTML(id):'';}
+  if(tag==='video'){const key=localImageKey(a.src||'');if(remote||!key)return '';keys.add(key);return `<video src="${e(imageURL(key))}" controls playsinline preload="metadata">เบราว์เซอร์นี้ไม่รองรับวิดีโอ</video>`;}
   if(tag==='img'){const key=localImageKey(a.src||''),url=remote&&remoteImage(a.src||'');if(!key&&!url)return '';if(key)keys.add(key);if(url)urls.add(url);return `<img src="${e(key?imageURL(key):url)}" alt="${e((a.alt||'').slice(0,180))}" loading="lazy">`;}
   const children=(n.childNodes||[]).map(x=>walk(x,depth+1)).join('');
   if(tag==='a'){let url;try{const u=new URL(a.href);if(u.protocol==='https:'&&!u.username&&!u.password)url=u.href;}catch{}return url?`<a href="${e(url)}" rel="nofollow noopener noreferrer">${children}</a>`:children;}

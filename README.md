@@ -18,6 +18,7 @@ Staging: https://lync-to-mart-staging.paiboon.workers.dev/ — ยังไม�
 - ตรวจ owner ใน API, โควตาร้าน/สินค้าจากตาราง plans และ branding ตาม plan
 - นับ page views และ outbound clicks จริง ไม่อ้างว่าเป็นยอดขายหรือจำนวนคนไม่ซ้ำ
 - นำเข้าข้อมูลจาก HTML สาธารณะของ Thaimart: ชื่อ ราคา รายละเอียด รูป และตัวเลือก แสดงให้ตรวจแก้ก่อนยืนยัน
+- วิดีโอในรายละเอียด: YouTube หรือ MP4 (H.264/AAC) สูงสุด 20 MB/ไฟล์ พื้นที่ร่วมรูป 500 MB/บัญชี มี byte-range สำหรับการเลื่อนเล่น
 - Rich text พร้อมรูปแทรก, แกลเลอรี, รูปตัวเลือก, SKU/ราคา/น้ำหนัก/ขนาดรายแบบ และ SSR Product structured data
 - อ่านข้อมูลจริงโดยไม่ใช้ AI แต่งรายละเอียด ทดสอบกับ HTML ของลิงก์ตัวอย่าง 3 รายการ ดู docs/THAIMART-INTEGRATION.md
 - หน้าแพ็กเกจแสดงข้อเสนอ Free / Starter / Growth / Brand โดยยังไม่เปิดขาย
