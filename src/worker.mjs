@@ -1,3 +1,4 @@
+import {trashProduct,ownedTrash,restoreProduct} from './trash.mjs';
 import {accountUsage,STORAGE_LIMIT} from './usage.mjs';
 import {productIdentity,duplicateSQL,findDuplicate} from './duplicates.mjs';
 import {shopShare} from './share.mjs';
@@ -77,8 +78,9 @@ async function handle(req,env,ctx){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
    const id=crypto.randomUUID();try{const r=await query(env,'INSERT INTO shops(id,owner_id,slug,name) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM shops WHERE owner_id=?)<?',id,user.id,slug,name,user.id,plan.shops).run();if(!r.meta.changes)fail('จำนวนร้านครบตามแพ็กเกจแล้ว',409);}catch(err){if(err.message.includes('UNIQUE'))fail('ชื่อ URL นี้ถูกใช้แล้ว',409);throw err;}return json({id},201);
   }
-  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status))?$/);
+  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|trash))?$/);
   if(sm){const shop=await shopFor(env,sm[1],user);
+   if(sm[2]==='trash'&&method==='GET')return json((await query(env,"SELECT id,deleted_at,json_extract(snapshot,'$.name') AS name,json_extract(snapshot,'$.image_key') AS image_key FROM product_trash WHERE shop_id=? ORDER BY deleted_at DESC,id DESC",shop.id).all()).results);
    if(sm[2]==='bulk-status'&&method==='POST'){
     const b=await body(req);
     if(!b||!['draft','published'].includes(b.status)||!Array.isArray(b.ids)||!b.ids.length||b.ids.length>100||b.ids.some(id=>typeof id!=='string'||!id.trim()||id.length>100)||new Set(b.ids).size!==b.ids.length)fail('เลือกสินค้า 1–100 รายการและสถานะที่ถูกต้อง');
@@ -115,12 +117,14 @@ async function handle(req,env,ctx){
     const result=await query(env,`INSERT INTO products(id,shop_id,name,description,price,source_url,image_key,status,description_html,gallery_json,variants_json,category,checkout_url) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM products p JOIN shops s ON s.id=p.shop_id WHERE s.owner_id=?)<? AND NOT EXISTS(${duplicateSQL})`,id,shop.id,...data,user.id,plan.products,shop.id,'',productIdentity(data[3])).run();if(!result.meta.changes){if(await findDuplicate(env,shop.id,'',data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);fail('จำนวนสินค้าครบตามแพ็กเกจแล้ว',409);};return json({id},201);
    }
   }
+  const tm=p.match(/^\/api\/trash\/([^/]+)(?:\/(restore))?$/);
+  if(tm){const row=await ownedTrash(env,tm[1],user);if(tm[2]==='restore'&&method==='POST')return json(await restoreProduct(env,row,user,plan));if(!tm[2]&&method==='DELETE'){await query(env,'DELETE FROM product_trash WHERE id=?',row.id).run();return json({ok:true});}}
   const pm=p.match(/^\/api\/products\/([^/]+)(?:\/(featured))?$/);
   if(pm){const product=await query(env,'SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND s.owner_id=?',pm[1],user.id).first();if(!product)fail('ไม่พบสินค้า',404);
    if(pm[2]==='featured'){if(method!=='PUT')return json({error:'ไม่พบรายการที่ขอ'},404);const b=await body(req);if(typeof b.featured!=='boolean')fail('สถานะปักหมุดไม่ถูกต้อง');await query(env,'UPDATE products SET featured=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',b.featured?1:0,product.id).run();return json({featured:b.featured});}
    if(method==='GET')return json(productRecord(product));
    if(method==='PUT'){const data=await productData(await body(req),env,user,product);if(await findDuplicate(env,product.shop_id,product.id,data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);const updated=await query(env,`UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,checkout_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS(${duplicateSQL})`,...data,product.id,product.shop_id,product.id,productIdentity(data[3])).run();if(!updated.meta.changes)fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);return json({ok:true});}
-   if(method==='DELETE'){await query(env,'DELETE FROM products WHERE id=?',product.id).run();return json({ok:true});}
+   if(method==='DELETE'){await trashProduct(env,product.id);return json({ok:true,trashed:true});}
   }
   if(p==='/api/import'&&method==='POST'){
    const b=await body(req),target=safeURL(b.url,hosts(env.IMPORT_HOSTS));if(!target||!/^\/products\/[a-f0-9]{24}\/?$/i.test(new URL(target).pathname))fail('ยังไม่เปิดนำเข้าจากโดเมนนี้ กรุณาเพิ่มข้อมูลสินค้าด้วยตนเอง',422);

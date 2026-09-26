@@ -145,3 +145,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Verified extraction yields four images/24 options and downloaded the actual cover as JPEG. Upload size/signature/ownership checks remain in place.
 - Editor disables publish and published-status option when gallery is empty, permits draft saves and gives accurate zero-image feedback. Bulk publication rejects records without a cover. Existing saved content is not automatically reimported or unpublished.
 - This UI gate does not change the legacy direct product API's allowance for image-free products. Existing test fixtures reflect gallery requirements in the editor and bulk UI.
+
+### Product trash and restore
+- Migration 0007 creates a separate owner/shop-scoped trash snapshot table. Normal delete now atomically snapshots the current product row and removes it from active products; public catalog, buy redirect, preview and product quota stop including it. Existing analytics remain historical.
+- Product list opens Trash, with confirmed restore-as-draft and permanent snapshot deletion. Restore preserves original ID/content/media/variants/checkout/featured flag, atomically checks account quota and normalized ThaiMart duplicate identity, then removes the snapshot. Failed restore retains the trash entry.
+- Archived items do not block adding the same link anew; restoring afterwards is blocked while the new active duplicate exists. Media remains stored, private unless separately referenced publicly, and counts toward storage; permanent snapshot deletion does not delete shared R2 files. No auto-expiry yet. Earlier hard-deleted items cannot be recovered by this feature.
+- API/DOM tests cover active/public/media invisibility, owner isolation, duplicate reimport/restore, quota failure, field preservation, draft restore, permanent deletion and request locks. Suite: 35 passing tests.

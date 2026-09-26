@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node scripts/local.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check public/product-pages.js && node --check public/import-review.js && node --check public/bulk-products.js && node --check src/duplicates.mjs && node --check src/usage.mjs && node --check public/account-usage.js && node --check src/worker.mjs && node --check src/content.mjs && node --check src/import.mjs && node --check src/catalog.mjs && node --check src/storefront.mjs && node --check public/app.js && node --check public/product-editor.js && node --check public/video.js && node --check public/storefront.js && node --check src/share.mjs && node --check public/shop-share.js && node --check public/product-analytics.js",
+    "check": "node --check src/trash.mjs && node --check public/product-trash.js && node --check public/product-pages.js && node --check public/import-review.js && node --check public/bulk-products.js && node --check src/duplicates.mjs && node --check src/usage.mjs && node --check public/account-usage.js && node --check src/worker.mjs && node --check src/content.mjs && node --check src/import.mjs && node --check src/catalog.mjs && node --check src/storefront.mjs && node --check public/app.js && node --check public/product-editor.js && node --check public/video.js && node --check public/storefront.js && node --check src/share.mjs && node --check public/shop-share.js && node --check public/product-analytics.js",
     "deploy": "wrangler deploy",
     "cf:dev": "wrangler dev"
   },

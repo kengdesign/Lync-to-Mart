@@ -102,3 +102,5 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 @media(max-width:600px){.analytics-list{padding-right:14px}.analytics-count{min-width:52px;font-size:18px}}
 
 .analytics-controls{display:flex;align-items:flex-end;gap:12px;flex-shrink:0}.analytics-controls label{margin:0}.analytics-controls button{min-height:44px;white-space:nowrap}@media(max-width:600px){.analytics-controls{width:100%;flex-wrap:wrap}.analytics-controls label{flex:1;min-width:140px}.analytics-controls button{flex:1}}
+
+.trash-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 0;border-bottom:1px solid #eee}.trash-row>div:first-child{min-width:0;flex:1;overflow-wrap:anywhere}.trash-row strong{font-size:14px;line-height:1.7}.trash-row small{display:block;font-size:12px;color:#777;margin-top:6px}.trash-row .actions{flex-shrink:0;gap:8px}@media(max-width:600px){.trash-row{align-items:stretch;flex-direction:column;gap:12px}.trash-row .actions{flex-wrap:wrap}.trash-row button{flex:1}}

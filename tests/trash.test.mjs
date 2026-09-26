@@ -1,0 +1,27 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {database} from '../scripts/adapter.mjs';import {hash} from '../src/security.mjs';import worker from '../src/worker.mjs';import {JSDOM} from 'jsdom';import {mountProductTrash} from '../public/product-trash.js';
+test('trash hides product and media, permits reimport, restores draft atomically with owner and quota checks',async()=>{
+ const DB=database(),env={DB,APP_ENV:'staging',CHECKOUT_HOSTS:'thaimart.com',MEDIA:{get:async()=>({body:'image',httpMetadata:{contentType:'image/png'}})}},pending=[];
+ const call=async(path,method='GET',data,user='alice')=>{const r=await worker.fetch(new Request('https://mart.test'+path,{method,headers:{Origin:'https://mart.test',...(user?{Cookie:'mart_session='+user}:{})},...(data?{body:JSON.stringify(data)}:{})}),env,{waitUntil:p=>pending.push(p)});await Promise.all(pending);return r;};
+ try{
+ for(const id of ['alice','bob']){await DB.prepare('INSERT INTO users VALUES(?,?,?,?)').bind(id,id+'@test.com','unused','free').run();await DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(await hash(id),id,Math.floor(Date.now()/1000)+3600).run();}
+ await DB.prepare('INSERT INTO shops(id,owner_id,slug,name,published) VALUES(?,?,?,?,?)').bind('shop','alice','test-shop','ร้าน',1).run();await DB.prepare('INSERT INTO media VALUES(?,?,?,?)').bind('alice/image','alice','image/png',10).run();
+ const original={name:'ทดสอบ',source_url:'https://thaimart.com/products/6aa8a98ed792ee0753ff3dba?share=true',checkout_url:'https://thaimart.com/buy?ref=keep',price:5900,status:'published',gallery:[{key:'alice/image',alt:'รูปปก'}],description_html:'<p>รายละเอียด 😀</p><img src="/media/alice%2Fimage">',category:'หมวด',variants:[{attributes:[{key:'สี',value:'แดง'}],sku:'RED',price:5900,image_key:'alice/image'}]};
+ const id=(await(await call('/api/shops/shop/products','POST',original)).json()).id;assert.ok(id);await call(`/api/products/${id}/featured`,'PUT',{featured:true});const saved=await(await call('/api/products/'+id)).json();
+ assert.equal((await call('/api/products/'+id,'DELETE',null,'bob')).status,404);assert.equal((await call('/api/products/'+id,'DELETE')).status,200);
+ assert.equal((await call('/api/products/'+id)).status,404);assert.equal((await call('/go/'+id,'GET',null,null)).status,404);assert.equal((await call('/media/alice%2Fimage','GET',null,null)).status,401);
+ assert.equal((await(await call('/api/shops/shop/products')).json()).length,0);assert.equal((await(await call('/api/usage')).json()).products.used,0);assert.equal((await(await call('/api/shops/shop/duplicate','POST',{url:original.source_url})).json()).product,null);
+ assert.equal((await call('/api/shops/shop/trash','GET',null,'bob')).status,404);assert.equal((await call(`/api/trash/${id}/restore`,'POST',{},'bob')).status,404);assert.equal((await call(`/api/trash/${id}`,'DELETE',null,'bob')).status,404);
+ assert.equal((await(await call('/api/shops/shop/trash')).json())[0].id,id);
+ const replacement=await call('/api/shops/shop/products','POST',original);assert.equal(replacement.status,201);const otherId=(await replacement.json()).id;
+ assert.equal((await call(`/api/trash/${id}/restore`,'POST',{})).status,409);assert.equal((await(await call('/api/shops/shop/trash')).json()).length,1);
+ await call('/api/products/'+otherId,'DELETE');await DB.prepare("UPDATE plans SET products=0 WHERE id='free'").run();assert.equal((await call(`/api/trash/${id}/restore`,'POST',{})).status,409);assert.equal((await(await call('/api/shops/shop/trash')).json()).length,2);
+ await DB.prepare("UPDATE plans SET products=10 WHERE id='free'").run();assert.equal((await call(`/api/trash/${id}/restore`,'POST',{})).status,200);const restored=await(await call('/api/products/'+id)).json();assert.equal(restored.status,'draft');for(const key of ['id','name','price','description_html','gallery_json','variants_json','category','checkout_url','source_url','featured','created_at'])assert.deepEqual(restored[key],saved[key]);assert.equal((await call('/go/'+id,'GET',null,null)).status,404);assert.equal((await call(`/api/trash/${id}/restore`,'POST',{})).status,404);
+ await call('/api/products/'+id,'DELETE');assert.equal((await call(`/api/trash/${id}`,'DELETE')).status,200);assert.equal((await call(`/api/trash/${id}/restore`,'POST',{})).status,404);assert.ok(await DB.prepare('SELECT key FROM media WHERE key=?').bind('alice/image').first());
+ }finally{DB.close();}
+});
+test('trash UI confirms actions, locks requests, keeps conflicts and handles empty state',async()=>{
+ const dom=new JSDOM('<main></main>'),root=dom.window.document.querySelector('main');let confirm=false,calls=0,resolve,reject,items=[{id:'one',name:'สินค้า <script>',deleted_at:'2026-09-26 15:00:00'}];
+ const api=async(path,options)=>{if(!options)return items;calls++;return new Promise((res,rej)=>{resolve=res;reject=rej;});};
+ mountProductTrash({root,shopId:'shop',api,onBack(){},toast(){},confirm:()=>confirm});await new Promise(r=>setTimeout(r,0));assert.equal(root.querySelector('script'),null);let button=root.querySelector('.trash-row button');await button.onclick();assert.equal(calls,0);confirm=true;const failed=button.onclick();assert.ok(button.disabled);reject(new Error('duplicate'));await failed;assert.ok(!button.disabled);assert.ok(root.querySelector('.trash-row'));
+ const success=button.onclick();items=[];resolve({id:'one',status:'draft'});await success;assert.match(root.textContent,/ถังขยะว่าง/);assert.equal(root.querySelector('[data-back]').disabled,false);dom.window.close();
+});
