@@ -62,3 +62,14 @@ test('rescan compares unsaved edits, cancel preserves them, accept keeps checkou
   assert.equal(document.querySelector('#pname').value,'ชื่อใหม่');assert.equal(document.querySelector('#pcheckout').value,'https://thaimart.com/buy?affiliate=keep');assert.equal(document.querySelector('#pstatus').value,'draft');assert.equal(document.querySelector('[data-save-status="published"]').disabled,true);assert.equal(writes,0);
  }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}dom.window.close();}
 });
+
+test('deleting locks save and close until completion and restores editor after failure',async()=>{
+ const dom=new JSDOM('<dialog id="editor"></dialog>',{url:'https://mart.test'}),previous={};for(const name of ['document','window','DOMParser','FormData','confirm']){previous[name]=globalThis[name];globalThis[name]=name==='confirm'?()=>true:dom.window[name];}
+ const modal=document.querySelector('dialog');modal.showModal=()=>modal.open=true;modal.close=()=>modal.open=false;let resolve,reject,saves=0,loaded=0;
+ try{const editor=createProductEditor({api:async(path,options)=>{assert.equal(path,'/products/saved');assert.equal(options.method,'DELETE');return new Promise((res,rej)=>{resolve=res;reject=rej;});},send:async()=>{saves++;},shopId:()=> 'shop',onSaved:async()=>{loaded++;},toast(){}});
+ editor.edit({id:'saved',name:'ทดสอบ',source_url:'https://thaimart.com/products/6a8489fba9ceed89ab290994'});
+ const deleting=document.querySelector('#delete-product').onclick(),form=document.querySelector('form');assert.ok([...modal.querySelectorAll('button,input,select,textarea')].every(el=>el.disabled));
+ await form.onsubmit({preventDefault(){},target:form});document.querySelector('[data-close]').onclick();assert.equal(saves,0);assert.equal(modal.open,true);reject(new Error('ลบไม่สำเร็จ'));await deleting;assert.match(document.querySelector('#product-error').textContent,/ลบไม่สำเร็จ/);assert.equal(document.querySelector('#save-product').disabled,false);
+ const retry=document.querySelector('#delete-product').onclick();resolve({ok:true});await retry;assert.equal(modal.open,false);assert.equal(loaded,1);
+ }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}dom.window.close();}
+});
