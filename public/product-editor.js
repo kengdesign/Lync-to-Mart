@@ -1,5 +1,5 @@
 import {mountImportProvenance} from './import-provenance.js?v=provenance1';
-import {reviewImport} from './import-review.js?v=review1';
+import {reviewImport} from './import-review.js?v=select1';
 import {youtubeID,youtubeHTML} from './video.js';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -66,7 +66,7 @@ export function createProductEditor({api,send,shopId,onSaved,toast}){
   $('#rescan').onclick=async()=>{if(working||!$('#psource').value)return;
    const current={name:$('#pname').value,category:$('#pcategory').value,price:$('#pprice').value===''?null:Math.round(Number($('#pprice').value)*100),description_html:rich.innerHTML,gallery:gallery.map(im=>({...im})),variants:readVariants()},sourceURL=$('#psource').value,checkoutURL=$('#pcheckout').value;
    setBusy(true);$('#save-progress').textContent='กำลังอ่านข้อมูลเพื่อเปรียบเทียบ…';
-   try{if(await checkDuplicate(sourceURL,p.id,$('#product-error')))return;const draft=await send('/import',{url:sourceURL});$('#save-progress').textContent='รอตรวจเปรียบเทียบข้อมูลด้านบน';if(await reviewImport(modal,current,draft))edit({...draft,id:p.id,status:'draft',checkout_url:checkoutURL});}
+   try{if(await checkDuplicate(sourceURL,p.id,$('#product-error')))return;const draft=await send('/import',{url:sourceURL});$('#save-progress').textContent='รอตรวจเปรียบเทียบข้อมูลด้านบน';const selected=await reviewImport(modal,current,draft);if(selected)edit({...selected,id:p.id,status:'draft',checkout_url:checkoutURL});}
    catch(err){error(err);}finally{setBusy(false);if(form.isConnected){$('#save-progress').textContent='';$('#rescan').focus();}}
   };
   $('#product-form').onsubmit=async ev=>{ev.preventDefault();if(working)return;if(pendingImport&&ev.submitter?.dataset.saveStatus){error(new Error('กรุณายืนยันและบันทึกสินค้าให้เสร็จก่อนเผยแพร่'));return;}const b=Object.fromEntries(new FormData(ev.target));setBusy(true);$('#product-error').textContent='';try{

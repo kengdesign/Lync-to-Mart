@@ -1,7 +1,19 @@
 const price=v=>v==null?'ไม่ระบุราคา':`${(v/100).toLocaleString('th-TH',{maximumFractionDigits:2})} บาท`;
+export function mergeImportSelection(current,incoming,selected){
+ const result={...current,source_url:incoming.source_url,imported_at:incoming.imported_at,import_receipt:incoming.import_receipt,warnings:incoming.warnings};
+ for(const key of selected){
+  const fields={name:['name'],category:['category'],description:['description','description_html'],commerce:['price','variants','gallery']}[key]||[];
+  for(const field of fields)result[field]=incoming[field];
+ }
+ return result;
+}
 export function reviewImport(modal,current,incoming){
  const doc=modal.ownerDocument,section=doc.createElement('section');section.className='import-review';section.setAttribute('aria-label','เปรียบเทียบข้อมูลก่อนนำเข้า');
- section.innerHTML='<h3 tabindex="-1">ตรวจข้อมูลก่อนแทนที่</h3><p>ด้านเดิมเป็นข้อมูลล่าสุดในฟอร์ม รวมสิ่งที่ยังไม่ได้บันทึก การนำข้อมูลใหม่มาใช้จะแทนชื่อ ราคา หมวดหมู่ รายละเอียด รูป และตัวเลือกทั้งหมด ลิงก์ซื้อที่คุณตั้งไว้จะคงเดิม</p><p class="notice">ยังไม่บันทึกหรือเผยแพร่ การยืนยันบันทึกหลังจากนี้จะบันทึกเป็นฉบับร่างก่อน หากสินค้าเผยแพร่อยู่ สินค้าจะหยุดแสดงจนกดเผยแพร่อีกครั้ง</p><div data-comparison></div><div class="actions"><button type="button" data-keep class="secondary">เก็บข้อมูลเดิม</button><button type="button" data-apply>นำข้อมูลใหม่มาใช้ในฟอร์ม</button></div>';
+ section.innerHTML='<h3 tabindex="-1">ตรวจข้อมูลก่อนแทนที่</h3><p>ด้านเดิมเป็นข้อมูลล่าสุดในฟอร์ม รวมสิ่งที่ยังไม่ได้บันทึก เลือกเฉพาะส่วนที่ต้องการแทนที่ ส่วนที่ไม่เลือกจะเก็บข้อมูลเดิมในฟอร์ม รวมข้อความ รูปแทรก และวิดีโอที่แก้ไว้ ลิงก์ซื้อที่คุณตั้งไว้จะคงเดิม</p><p class="notice">ยังไม่บันทึกหรือเผยแพร่ การยืนยันบันทึกหลังจากนี้จะบันทึกเป็นฉบับร่างก่อน หากสินค้าเผยแพร่อยู่ สินค้าจะหยุดแสดงจนกดเผยแพร่อีกครั้ง</p><fieldset class="import-selection"><legend>เลือกข้อมูลใหม่ที่ต้องการนำมาใช้</legend><p>ราคา ตัวเลือก และแกลเลอรีนำเข้าพร้อมกัน เพื่อให้รูปของแต่ละตัวเลือกตรงกัน</p><div data-selections></div><small data-selection-summary role="status"></small></fieldset><div data-comparison></div><div class="actions"><button type="button" data-keep class="secondary">เก็บข้อมูลเดิม</button><button type="button" data-apply>นำข้อมูลใหม่มาใช้ในฟอร์ม</button></div>';
+ const choices=[['name','ชื่อสินค้า'],['category','หมวดหมู่'],['description','รายละเอียด รวมรูปแทรกและวิดีโอ'],['commerce','ราคา ตัวเลือก และรูปแกลเลอรี']];
+ for(const [key,title] of choices){const label=doc.createElement('label'),input=doc.createElement('input');label.className='inline-check';input.type='checkbox';input.checked=true;input.dataset.importField=key;label.append(input,doc.createTextNode(title));section.querySelector('[data-selections]').append(label);}
+ function update(){const selected=[...section.querySelectorAll('[data-import-field]:checked')];section.querySelector('[data-apply]').disabled=!selected.length;section.querySelector('[data-selection-summary]').textContent=`เลือก ${selected.length} / ${choices.length} ส่วน · ส่วนที่ไม่เลือกจะคงเดิม`;}
+ section.querySelectorAll('[data-import-field]').forEach(input=>input.onchange=update);update();
  const container=section.querySelector('[data-comparison]');
  function textValue(value){const node=doc.createElement('pre');node.textContent=value||'—';return node;}
  function detail(p){const parsed=new doc.defaultView.DOMParser().parseFromString(p.description_html||'','text/html');parsed.querySelectorAll('script,style,[data-remove-video]').forEach(n=>n.remove());return (parsed.body.textContent||p.description||'')+`\n[รูปในรายละเอียด ${parsed.querySelectorAll('img').length} · วิดีโอ ${parsed.querySelectorAll('video,iframe').length}]`;}
@@ -10,5 +22,5 @@ export function reviewImport(modal,current,incoming){
  const fields=[['ชื่อสินค้า',p=>p.name],['ราคาเริ่มต้น',p=>price(p.price)],['หมวดหมู่',p=>p.category],['รายละเอียด (ข้อความและจำนวนสื่อ)',detail],['ตัวเลือกสินค้า',variants],['รูปแกลเลอรี',p=>`${(p.gallery||[]).length} รูป`]];
  for(const [label,read] of fields){const old=read(current)||'',next=read(incoming)||'',row=doc.createElement('div');row.className='review-row';const heading=doc.createElement('h4');heading.textContent=label+(label==='รูปแกลเลอรี'?' · ตรวจรูปและลำดับ':old===next?' · ข้อความเหมือนเดิม':' · มีความต่าง');row.append(heading);const columns=doc.createElement('div');columns.className='review-columns';for(const [title,p,value] of [['ข้อมูลเดิมในฟอร์ม',current,old],['ข้อมูลใหม่จาก Thaimart',incoming,next]]){const cell=doc.createElement('div'),caption=doc.createElement('strong');caption.textContent=title;cell.append(caption,textValue(value));if(label==='รูปแกลเลอรี')cell.append(images(p));columns.append(cell);}row.append(columns);container.append(row);}
  const warnings=doc.createElement('p');warnings.textContent=(incoming.warnings||[]).join(' · ');section.append(warnings);modal.querySelector('#product-form').before(section);section.querySelector('h3').focus();section.scrollIntoView?.({block:'start'});
- return new Promise(resolve=>{function finish(accepted){section.remove();resolve(accepted);}section.querySelector('[data-keep]').onclick=()=>finish(false);section.querySelector('[data-apply]').onclick=()=>finish(true);});
+ return new Promise(resolve=>{function finish(accepted){section.remove();resolve(accepted);}section.querySelector('[data-keep]').onclick=()=>finish(false);section.querySelector('[data-apply]').onclick=()=>finish(mergeImportSelection(current,incoming,[...section.querySelectorAll('[data-import-field]:checked')].map(input=>input.dataset.importField)));});
 }
