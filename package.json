@@ -1,1 +1,19 @@
-{"name":"lync-to-mart","version":"0.1.0","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"dev":"node scripts/local.mjs","test":"node --test tests/*.test.mjs","check":"node --check src/worker.mjs && node --check public/app.js","deploy":"wrangler deploy","cf:dev":"wrangler dev"},"devDependencies":{}}
+{
+  "name": "lync-to-mart",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node scripts/local.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/worker.mjs && node --check src/content.mjs && node --check src/import.mjs && node --check src/storefront.mjs && node --check public/app.js && node --check public/product-editor.js",
+    "deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev"
+  },
+  "dependencies": {
+    "parse5": "8.0.0"
+  }
+}

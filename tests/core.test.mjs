@@ -41,7 +41,7 @@ test('provided Thaimart URLs round-trip through shop redirects without enabling 
  const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
  const {DB,call,login}=await fixture(config.vars.CHECKOUT_HOSTS);
  try{
-  assert.equal(config.vars.IMPORT_HOSTS,'');
+  assert.equal(config.vars.IMPORT_HOSTS,'thaimart.com');
   const cookie=await login('alice@example.test');
   const {id}=await (await call('/api/shops','POST',{name:'ร้านทดสอบลิงก์',slug:'url-test'},cookie)).json();
   await call(`/api/shops/${id}`,'PUT',{name:'ร้านทดสอบลิงก์',published:true},cookie);

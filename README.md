@@ -4,9 +4,9 @@
 
 Repository: https://github.com/kengdesign/Lync-to-Mart
 
-GitHub Actions จะตรวจ syntax และรันทดสอบทุก push/pull request โดยยังไม่ deploy อัตโนมัติ
+GitHub Actions ตรวจ syntax และทดสอบทุก push/pull request ส่วน Cloudflare Workers Builds deploy staging จาก main
 
-นี่คือโค้ดเริ่มต้นที่ทำงานได้ในเครื่อง สำหรับพัฒนาต่อบน Cloudflare ของเจ้าของโปรเจกต์ ยังไม่ใช่ระบบ production และยังไม่ได้ deploy ไปยังบัญชี Cloudflare หรือเว็บไซต์ lyncto.link
+Staging: https://lync-to-mart-staging.paiboon.workers.dev/ — ยังไม่ใช่ production และไม่ได้เชื่อม DNS กับ lyncto.link
 
 ## สิ่งที่ทำแล้ว
 
@@ -17,15 +17,17 @@ GitHub Actions จะตรวจ syntax และรันทดสอบทุ
 - โครง API + D1 schema + R2 binding สำหรับ Cloudflare Workers
 - ตรวจ owner ใน API, โควตาร้าน/สินค้าจากตาราง plans และ branding ตาม plan
 - นับ page views และ outbound clicks จริง ไม่อ้างว่าเป็นยอดขายหรือจำนวนคนไม่ซ้ำ
-- นำเข้า Product JSON-LD จาก URL เฉพาะโดเมนที่ผู้ดูแลเปิดอนุญาต; แสดงให้ร้านตรวจทานก่อนบันทึก
-- importer นี้เป็นการอ่านข้อมูลแบบมีโครงสร้าง ยังไม่มี AI และยังไม่ได้ทดสอบกับหน้าสินค้า Thaimart จริง
+- นำเข้าข้อมูลจาก HTML สาธารณะของ Thaimart: ชื่อ ราคา รายละเอียด รูป และตัวเลือก แสดงให้ตรวจแก้ก่อนยืนยัน
+- Rich text พร้อมรูปแทรก, แกลเลอรี, รูปตัวเลือก, SKU/ราคา/น้ำหนัก/ขนาดรายแบบ และ SSR Product structured data
+- อ่านข้อมูลจริงโดยไม่ใช้ AI แต่งรายละเอียด ทดสอบกับ HTML ของลิงก์ตัวอย่าง 3 รายการ ดู docs/THAIMART-INTEGRATION.md
 - หน้าแพ็กเกจแสดงข้อเสนอ Free / Starter / Growth / Brand โดยยังไม่เปิดขาย
 
 ## รันในเครื่อง
 
-ต้องมี Node.js 24 ขึ้นไป โหมด local ไม่ต้องติดตั้ง dependency:
+ต้องมี Node.js 24 ขึ้นไป:
 
 ```bash
+npm ci
 npm test
 npm run check
 npm run dev
@@ -39,9 +41,12 @@ npm run dev
 
 - `src/worker.mjs` API, auth, หน้าร้าน server rendering, redirect, media
 - `src/security.mjs` password/hash/URL validation/HTML escape
-- `src/import.mjs` JSON-LD extraction แบบไม่แต่งข้อมูล
+- `src/import.mjs` Thaimart Flight และ JSON-LD extraction แบบไม่รันสคริปต์
+- `src/content.mjs` rich HTML sanitizer และรูปแบบข้อมูลสินค้า
+- `src/storefront.mjs` หน้าร้าน SSR และ structured data
 - `public/` UI ภาษาไทยและ responsive CSS
 - `migrations/0001_core.sql` schema, plans และ indexes
+- `migrations/0002_product_content.sql` เพิ่มคอลัมน์เนื้อหา/แกลเลอรี/ตัวเลือก โดยไม่ลบข้อมูลเก่า
 - `scripts/local.mjs` local HTTP server + SQLite/R2 adapter
 - `scripts/create-user.mjs` สร้าง SQL สำหรับบัญชีทดสอบ staging
 - `tests/core.test.mjs` ทดสอบ lifecycle/security/import/login limit
@@ -51,7 +56,7 @@ npm run dev
 
 ## ขอบเขตสำคัญ
 
-ยังไม่มี: สมัครสมาชิกสาธารณะ, เชื่อมบัญชี Lyncto/WordPress, social login, กู้รหัสผ่าน, AI credits, AI generation, Stripe subscriptions/webhooks, VAT/WHT workflow, API sync Thaimart, นำเข้ารูปจากต้นทางอัตโนมัติ, QR generator, LINE album, creator/affiliate attribution, custom domains, admin console, backups/monitoring/retention jobs
+ยังไม่มี: สมัครสมาชิกสาธารณะ, เชื่อมบัญชี Lyncto/WordPress, social login, กู้รหัสผ่าน, AI credits, AI generation, Stripe subscriptions/webhooks, VAT/WHT workflow, API sync Thaimart, QR generator, LINE album, creator/affiliate attribution, custom domains, admin console, backups/monitoring/retention jobs
 
 ไม่มีการเก็บบัตรหรือรับเงิน ไม่มีการแก้ DNS หรือแตะ production และไม่มี secrets อยู่ในแพ็กนี้
 

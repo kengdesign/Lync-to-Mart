@@ -1,0 +1,4 @@
+ALTER TABLE products ADD COLUMN description_html TEXT NOT NULL DEFAULT '';
+ALTER TABLE products ADD COLUMN gallery_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE products ADD COLUMN variants_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT '';
