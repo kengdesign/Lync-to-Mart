@@ -113,3 +113,13 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Owner can pin/unpin a product from the product list. Featured products sort first in the public catalog, search results and preview; pinned drafts stay private until published.
 - Storefront badge says seller-recommended, not best-selling. Product edit preserves the flag; price, media and checkout URL are unaffected.
 - Migration 0006 adds a default-off flag and catalog index. Integration test checks paging, tenant isolation, draft privacy, edits and unpinning.
+
+### Bulk saved-product status (staging)
+- Select up to 100 saved products, confirm publish/draft changes; owner-scoped atomic status update with full product validation before publication. Imported unsaved forms cannot enter this flow.
+- Tests cover selection limits, confirmation, request locks/retry, tenant isolation, missing rows, incomplete media and draft-shop privacy.
+
+### Review before rescan replacement (staging)
+- Reading a product link inside the editor displays current unsaved form data versus freshly extracted ThaiMart data: name, price, category, description text/media counts, variants and gallery thumbnails.
+- Keep current data cancels replacement without discarding edits. Apply replaces source fields in the form, preserves checkout URL and requires the existing draft confirmation/media-import flow before publication.
+- Review does not write product records or copy media; it fetches source data and displays image previews. No background synchronization or persisted provenance history yet. Description comparison is textual, not a visual rich-content diff.
+- DOM integration coverage verifies cancel, apply, retained checkout URL, escaped content and publication gate. Local suite now has 25 passing tests; mobile stacking is implemented but real-device visual QA remains pending.

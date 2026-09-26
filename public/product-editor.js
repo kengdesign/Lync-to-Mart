@@ -1,3 +1,4 @@
+import {reviewImport} from './import-review.js?v=review1';
 import {youtubeID,youtubeHTML} from './video.js';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -59,7 +60,12 @@ export function createProductEditor({api,send,shopId,onSaved,toast}){
   modal.querySelectorAll('[data-command]').forEach(b=>{b.onmousedown=ev=>ev.preventDefault();b.onclick=()=>{rich.focus();document.execCommand(b.dataset.command,false,b.dataset.value||null);count();};});
   rich.onpaste=ev=>{ev.preventDefault();const html=ev.clipboardData.getData('text/html'),text=ev.clipboardData.getData('text/plain');document.execCommand('insertHTML',false,html?pasteHTML(html):plainHTML(text));count();};
   rich.onclick=ev=>{selectedImage=ev.target.tagName==='IMG'?ev.target:null;$('#image-tools').hidden=!selectedImage;if(selectedImage)$('#image-alt').value=selectedImage.alt;};$('#image-alt').oninput=ev=>{if(selectedImage)selectedImage.alt=ev.target.value;};$('#remove-inline').onclick=()=>{selectedImage?.remove();selectedImage=null;$('#image-tools').hidden=true;};
-  $('#rescan').onclick=async()=>{if(working)return;if(!$('#psource').value)return;if(!confirm('อ่านข้อมูลจากลิงก์มาแทนข้อมูลในฟอร์มนี้? ข้อมูลเดิมในฐานข้อมูลจะยังไม่เปลี่ยนจนกดบันทึก'))return;const b=$('#rescan');setBusy(true);try{if(await checkDuplicate($('#psource').value,p.id,$('#product-error'))){b.disabled=false;return;}const checkoutURL=$('#pcheckout').value;const draft=await send('/import',{url:$('#psource').value});edit({...draft,id:p.id,status:p.status||'draft',checkout_url:checkoutURL});}catch(err){error(err);}finally{setBusy(false);}};
+  $('#rescan').onclick=async()=>{if(working||!$('#psource').value)return;
+   const current={name:$('#pname').value,category:$('#pcategory').value,price:$('#pprice').value===''?null:Math.round(Number($('#pprice').value)*100),description_html:rich.innerHTML,gallery:gallery.map(im=>({...im})),variants:readVariants()},sourceURL=$('#psource').value,checkoutURL=$('#pcheckout').value;
+   setBusy(true);$('#save-progress').textContent='กำลังอ่านข้อมูลเพื่อเปรียบเทียบ…';
+   try{if(await checkDuplicate(sourceURL,p.id,$('#product-error')))return;const draft=await send('/import',{url:sourceURL});$('#save-progress').textContent='รอตรวจเปรียบเทียบข้อมูลด้านบน';if(await reviewImport(modal,current,draft))edit({...draft,id:p.id,status:'draft',checkout_url:checkoutURL});}
+   catch(err){error(err);}finally{setBusy(false);if(form.isConnected){$('#save-progress').textContent='';$('#rescan').focus();}}
+  };
   $('#product-form').onsubmit=async ev=>{ev.preventDefault();if(working)return;if(pendingImport&&ev.submitter?.dataset.saveStatus){error(new Error('กรุณายืนยันและบันทึกสินค้าให้เสร็จก่อนเผยแพร่'));return;}const b=Object.fromEntries(new FormData(ev.target));setBusy(true);$('#product-error').textContent='';try{
    if(ev.submitter?.dataset.saveStatus)b.status=ev.submitter.dataset.saveStatus;if(pendingImport)b.status='draft';b.price=b.price===''?null:Math.round(Number(b.price)*100);b.variants=readVariants();
    if(await checkDuplicate(b.source_url,p.id,$('#product-error')))return;

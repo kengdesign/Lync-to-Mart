@@ -44,3 +44,21 @@ test('server refuses unresolved imported images and only owner can read saved pr
   assert.equal((await call('/api/products/'+id,'GET',null,'bob')).status,404);assert.equal((await call('/api/products/'+id,'GET',null,null)).status,401);
  }finally{DB.close();}
 });
+
+test('rescan compares unsaved edits, cancel preserves them, accept keeps checkout and requires draft save',async()=>{
+ const dom=new JSDOM('<dialog id="editor"></dialog>',{url:'https://mart.test'}),previous={};for(const name of ['document','window','DOMParser','FormData']){previous[name]=globalThis[name];globalThis[name]=dom.window[name];}
+ const modal=document.querySelector('dialog');modal.showModal=()=>modal.open=true;modal.close=()=>modal.open=false;let writes=0;
+ const draft={imported_at:'now',name:'ชื่อใหม่',category:'ใหม่',price:null,source_url:'https://thaimart.com/products/6a8489fba9ceed89ab290994',description_html:'<p>รายละเอียดใหม่</p>',gallery:[],variants:[],warnings:['ตรวจสอบราคา']};
+ const send=async(path)=>{if(path.endsWith('/duplicate'))return {product:null};if(path==='/import')return structuredClone(draft);writes++;throw new Error('Unexpected write');};
+ const tick=async()=>{for(let i=0;i<10&&!document.querySelector('[data-keep]');i++)await new Promise(r=>setTimeout(r,0));assert.ok(document.querySelector('[data-keep]'));};
+ try{
+  const editor=createProductEditor({api:async()=>{},send,shopId:()=> 'shop',onSaved:async()=>{},toast(){}});
+  editor.edit({id:'saved',name:'เดิม',price:100,status:'published',source_url:draft.source_url,checkout_url:'https://thaimart.com/buy?affiliate=keep',description_html:'<p>รายละเอียดเดิม</p>'});
+  document.querySelector('#pname').value='แก้ไว้ยังไม่บันทึก <img onerror=alert(1)>';
+  const originalForm=document.querySelector('#product-form');const cancel=document.querySelector('#rescan').onclick();await tick();
+  assert.match(document.querySelector('.import-review').textContent,/แก้ไว้ยังไม่บันทึก/);assert.match(document.querySelector('.import-review').textContent,/ไม่ระบุราคา/);assert.equal(document.querySelector('.import-review [onerror]'),null);assert.equal(document.querySelector('#save-product').disabled,true);
+  document.querySelector('[data-keep]').click();await cancel;assert.equal(document.querySelector('#product-form'),originalForm);assert.match(document.querySelector('#pname').value,/แก้ไว้/);assert.equal(document.querySelector('#pstatus').value,'published');assert.equal(document.querySelector('#save-product').disabled,false);assert.equal(writes,0);
+  const accept=document.querySelector('#rescan').onclick();await tick();document.querySelector('[data-apply]').click();await accept;
+  assert.equal(document.querySelector('#pname').value,'ชื่อใหม่');assert.equal(document.querySelector('#pcheckout').value,'https://thaimart.com/buy?affiliate=keep');assert.equal(document.querySelector('#pstatus').value,'draft');assert.equal(document.querySelector('[data-save-status="published"]').disabled,true);assert.equal(writes,0);
+ }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}dom.window.close();}
+});
