@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node scripts/local.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/worker.mjs && node --check src/content.mjs && node --check src/import.mjs && node --check src/storefront.mjs && node --check public/app.js && node --check public/product-editor.js && node --check public/video.js",
+    "check": "node --check src/worker.mjs && node --check src/content.mjs && node --check src/import.mjs && node --check src/storefront.mjs && node --check public/app.js && node --check public/product-editor.js && node --check public/video.js && node --check public/storefront.js",
     "deploy": "wrangler deploy",
     "cf:dev": "wrangler dev"
   },

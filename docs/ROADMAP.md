@@ -64,3 +64,13 @@ Conversion/revenue/affiliate commission จะรายงานได้เม�
 ## คำสั่งสำหรับ Codex รอบต่อไป
 
 อ่าน README.md, docs/VERIFICATION.md และ docs/ROADMAP.md ในโปรเจกต์นี้ก่อน ทำงานต่อจากโค้ดเดิม เชื่อม staging Cloudflare ของเจ้าของเมื่อมีสิทธิ์และข้อมูลบัญชีครบ ห้ามอ้างว่าส่วน AI, payments หรือ sync ใช้ได้ถ้ายังไม่ได้เชื่อมจริง ทดสอบ flow ร้านค้าและ tenant isolation, ยืนยัน desktop/mobile จาก browser, รายงานภาษาไทย ระบุสิ่งที่ทำแล้วและสิ่งที่ต้องเชื่อมเพิ่มให้ชัดเจน
+
+## สถานะอัปเดต 26 กันยายน 2026
+
+เสร็จแล้วบน staging: นำเข้า Thaimart 3 ลิงก์จริง, rich text/รูป/ตัวเลือก, แทรก YouTube/MP4, ปรับ typography แดชบอร์ด
+
+รอบจัดหน้าร้าน: โลโก้และภาพปก, SEO title/description + OG image, ค้นหาและกรองหมวดหมู่ใน One-page, หน้า /preview/{shopId} สำหรับเจ้าของเท่านั้น (รวม draft, noindex, ไม่บันทึก analytics และไม่มี redirect ซื้อจริง)
+
+Migration 0003 เพิ่มคอลัมน์ร้านเท่านั้น ไม่เปลี่ยน slug หรือสถานะเปิดร้านเดิม; รูปแบรนด์เปิดสาธารณะเมื่อร้านเผยแพร่ รูปที่นำออกยังไม่ลบ R2 ถาวร
+
+งานถัดไปที่ยังไม่เปิดใช้: QR/share assets, import provenance และตรวจรายการซ้ำ/ความต่างก่อนอัปเดต, SSO Lyncto, AI fact-based, ระบบสมาชิกและชำระเงิน ทั้งนี้รายละเอียด extraction เก่าในแผนด้านบนให้ยึดสถานะล่าสุดใน THAIMART-INTEGRATION.md
