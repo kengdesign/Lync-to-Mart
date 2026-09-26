@@ -86,3 +86,5 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .store-body .catalog-tools label{margin-bottom:0;min-width:0}
 .store-body .catalog-tools input,.store-body .catalog-tools select,.store-body .catalog-tools>button{height:48px;min-height:48px;box-sizing:border-box;line-height:1.5}
 .store-body .catalog-tools>button{margin:0;align-self:end}
+
+.featured-label{display:block;color:#b51c1a;font-size:.72rem;font-weight:600;line-height:1.6;margin:4px 0 8px}.product-row-actions{display:flex;flex-wrap:wrap;gap:4px;min-width:160px}.product-row-actions button{font-size:.8rem;white-space:nowrap}.product-row-actions button[aria-pressed=true]{background:#fff0ef;border-radius:8px}

@@ -108,3 +108,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - All editor controls lock during upload/save; saved imports reopen from the owner-only product API with a ready-to-publish notice.
 - Failed media imports remain unpublishable and can retry, preserving completed copies and variant associations. Server rejects unresolved gallery/variant image URLs.
 - DOM integration test covers blocked publish, in-flight locks, partial failure, retry and draft-to-published flow; API test covers incomplete media and owner-only readback.
+
+### Featured products
+- Owner can pin/unpin a product from the product list. Featured products sort first in the public catalog, search results and preview; pinned drafts stay private until published.
+- Storefront badge says seller-recommended, not best-selling. Product edit preserves the flag; price, media and checkout URL are unaffected.
+- Migration 0006 adds a default-off flag and catalog index. Integration test checks paging, tenant isolation, draft privacy, edits and unpinning.
