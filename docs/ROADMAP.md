@@ -169,3 +169,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Unselected fields retain the current unsaved form values, including seller-added inline images/videos and gallery/variant edits. Apply still requires confirmed draft save/media import before publishing and retains the checkout link; Cancel leaves the original form intact.
 - Last confirmed import provenance records the source/read event even for partial selection; it is not a claim that every saved field matches the source. No new migration or external service.
 - Added pure-merge and DOM tests for selective preservation, coupled commerce data, empty-selection guard and cancellation. Existing full editor confirmation tests still pass; suite: 41 tests. Responsive checkbox layout implemented; real-device visual QA pending.
+
+### Unsaved product editor protection
+- Product editor compares current field values, rich HTML and gallery with its opening/saved state when the seller closes the form. Close and Escape ask before discarding changes; unchanged/reverted forms close normally. Imported, unconfirmed content counts as unsaved immediately.
+- Reload/navigation uses the browser's native beforeunload prompt while edits or requests are pending. Browsers control whether/how this prompt appears, especially on mobile; this is not autosave or crash recovery.
+- In-flight operations still block closing; successful save/delete and editor replacement clean up the listeners. Existing duplicate replacement has its own confirmation. Shop settings and the initial link-entry dialog are outside this product-form guard.
+- Guard and full editor DOM tests cover rich-text/gallery changes, cancellation/discard, pending imports, reverting, successful saves and listener cleanup. Suite: 44 passing tests; real-browser/device prompt behavior remains to be verified.

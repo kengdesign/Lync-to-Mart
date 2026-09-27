@@ -80,3 +80,15 @@ test('saved empty gallery never claims image import success and cannot publish t
  assert.match(modal.textContent,/บันทึกฉบับร่างแล้ว แต่ยังไม่มีรูปสินค้า/);assert.doesNotMatch(modal.textContent,/นำเข้ารูปและบันทึกฉบับร่างสำเร็จแล้ว/);const publish=document.querySelector('[data-save-status="published"]');assert.ok(publish.disabled);assert.ok(document.querySelector('#pstatus [value="published"]').disabled);const form=document.querySelector('form');await form.onsubmit({preventDefault(){},target:form,submitter:publish});assert.equal(writes,0);assert.match(document.querySelector('#product-error').textContent,/เพิ่มรูปปก/);
  }finally{for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}dom.window.close();}
 });
+
+test('editor guards rich text/gallery edits on close, permits discard and clears guard after save',async()=>{
+ const dom=new JSDOM('<dialog id="editor"></dialog>',{url:'https://mart.test'}),previous={};for(const name of ['document','window','DOMParser','FormData']){previous[name]=globalThis[name];globalThis[name]=dom.window[name];}
+ const modal=document.querySelector('dialog');modal.showModal=()=>modal.open=true;modal.close=()=>{modal.open=false;modal.dispatchEvent(new dom.window.Event('close'));};let answer=false,questions=0,saves=0;dom.window.confirm=()=>{questions++;return answer;};
+ try{
+ const editor=createProductEditor({api:async()=>{},send:async path=>{if(path.endsWith('/duplicate'))return {product:null};saves++;return {id:'one'};},shopId:()=> 'shop',onSaved:async()=>{},toast(){}}),product={id:'one',name:'สินค้า',source_url:'https://thaimart.com/products/6a8489fba9ceed89ab290994',status:'draft',gallery:[{key:'alice/image'}],description_html:'<p>เดิม</p>'};
+ editor.edit(product);document.querySelector('[data-close]').click();assert.equal(modal.open,false);assert.equal(questions,0);
+ editor.edit(product);document.querySelector('#rich-editor').innerHTML='<p>แก้รายละเอียด 😀</p>';document.querySelector('[data-close]').click();assert.equal(modal.open,true);assert.equal(questions,1);answer=true;document.querySelector('[data-close]').click();assert.equal(modal.open,false);
+ editor.edit(product);answer=false;document.querySelector('[data-remove="0"]').click();document.querySelector('[data-close]').click();assert.equal(modal.open,true);
+ const form=document.querySelector('form');await form.onsubmit({preventDefault(){},target:form,submitter:document.querySelector('#save-product')});assert.equal(saves,1);assert.equal(modal.open,false);const unload=new dom.window.Event('beforeunload',{cancelable:true});dom.window.dispatchEvent(unload);assert.equal(unload.defaultPrevented,false);
+ }finally{for(const [name,value] of Object.entries(previous)){if(value===undefined)delete globalThis[name];else globalThis[name]=value;}dom.window.close();}
+});
