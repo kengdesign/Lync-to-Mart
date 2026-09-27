@@ -1,3 +1,4 @@
+import {requestReset,resetPassword} from './password-recovery.mjs';
 import {changePassword} from './account-security.mjs';
 import {discovery} from './discovery.mjs';
 import {effectivePlan,planExpression,planBindings} from './plans.mjs';
@@ -29,6 +30,8 @@ async function handle(req,env,ctx){
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
  if(['POST','PUT','DELETE'].includes(method)&&req.headers.get('origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
  const discovered=await discovery(req,env);if(discovered)return discovered;
+ if(p==='/api/forgot-password'&&method==='POST')return json(await requestReset(req,env,await body(req),ctx));
+ if(p==='/api/reset-password'&&method==='POST')return json(await resetPassword(req,env,await body(req)),200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=0'});
  if(p==='/api/login'&&method==='POST'){
   const b=await body(req),email=clean(b.email,254).toLowerCase(),password=typeof b.password==='string'?b.password:'';
   if(password.length>256)fail('ข้อมูลไม่ถูกต้อง');
@@ -163,7 +166,7 @@ async function handle(req,env,ctx){
   return json({error:'ไม่พบรายการที่ขอ'},404);
  }
  if(method!=='GET'&&method!=='HEAD')return json({error:'ไม่พบรายการที่ขอ'},404);
- if(p==='/'||p==='/dashboard')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
+ if(p==='/'||p==='/dashboard'||p==='/reset-password'||p==='/forgot-password')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
  return env.ASSETS.fetch(req);
 }
 async function productData(b,env,user,existing={}){

@@ -244,3 +244,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Password update and revocation of every session for that user are atomic, guarded against concurrent password changes. Login session creation checks the password hash has not changed since verification. Other users are unaffected.
 - Successful UI returns to sign-in and clears inputs. No real user passwords were changed during deployment verification. Email recovery remains a separate future step.
 - Auth/tenant/rate-limit/session invalidation regression tests use local fixture accounts; deployment does not create new infrastructure.
+
+### Postmark password recovery (2026-09-27)
+- Forgot/reset password pages use Postmark HTTPS API with POSTMARK_SERVER_TOKEN secret; From mart@lyncto.link, Reply-To contact@iresauce.com. Configured recovery origin prevents request-host injection. Staging recipients are explicitly allowlisted, initially paiboon@chiistudio.com; production configuration requires its own origin/token.
+- 256-bit random tokens stored as SHA-256 hashes, 30-minute expiry, password snapshot invalidation, atomic single-use reset plus revocation of all account sessions and tokens. GET never consumes token; URL fragment is removed from browser history on form mount. Link/open tracking disabled.
+- Generic request responses for account privacy; per-email and per-IP rate limits. Background delivery failure removes its token and logs only a generic error; frontend success is not a delivery receipt. No credentials or reset URLs logged.
+- 57 automated tests pass with simulated mail responses, including expiry/replay/concurrency, recipient restrictions and failure cleanup. Actual Postmark acceptance/inbox delivery still requires user-triggered staging test. No live password changed by verification.
