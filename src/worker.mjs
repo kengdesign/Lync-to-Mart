@@ -79,9 +79,17 @@ async function handle(req,env,ctx){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
    const id=crypto.randomUUID();try{const r=await query(env,'INSERT INTO shops(id,owner_id,slug,name) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM shops WHERE owner_id=?)<?',id,user.id,slug,name,user.id,plan.shops).run();if(!r.meta.changes)fail('จำนวนร้านครบตามแพ็กเกจแล้ว',409);}catch(err){if(err.message.includes('UNIQUE'))fail('ชื่อ URL นี้ถูกใช้แล้ว',409);throw err;}return json({id},201);
   }
-  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|trash))?$/);
+  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|bulk-category|trash))?$/);
   if(sm){const shop=await shopFor(env,sm[1],user);
    if(sm[2]==='trash'&&method==='GET')return json((await query(env,"SELECT id,deleted_at,json_extract(snapshot,'$.name') AS name,json_extract(snapshot,'$.image_key') AS image_key FROM product_trash WHERE shop_id=? ORDER BY deleted_at DESC,id DESC",shop.id).all()).results);
+   if(sm[2]==='bulk-category'&&method==='POST'){
+    const b=await body(req);
+    if(!b||typeof b.category!=='string'||b.category.length>500||!Array.isArray(b.ids)||!b.ids.length||b.ids.length>100||b.ids.some(id=>typeof id!=='string'||!id.trim()||id.length>100)||new Set(b.ids).size!==b.ids.length)fail('เลือกสินค้า 1–100 รายการ และหมวดหมู่ไม่เกิน 500 ตัวอักษร');
+    const ids=JSON.stringify(b.ids),category=b.category.trim();
+    const result=await query(env,`UPDATE products SET category=?,updated_at=CURRENT_TIMESTAMP WHERE shop_id=? AND id IN (SELECT value FROM json_each(?)) AND (SELECT COUNT(*) FROM products WHERE shop_id=? AND id IN (SELECT value FROM json_each(?)))=?`,category,shop.id,ids,shop.id,ids,b.ids.length).run();
+    if(result.meta.changes!==b.ids.length)fail('บางรายการไม่มีอยู่ในร้านแล้ว กรุณาโหลดรายการใหม่',409);
+    return json({ids:b.ids,category,count:b.ids.length});
+   }
    if(sm[2]==='bulk-status'&&method==='POST'){
     const b=await body(req);
     if(!b||!['draft','published'].includes(b.status)||!Array.isArray(b.ids)||!b.ids.length||b.ids.length>100||b.ids.some(id=>typeof id!=='string'||!id.trim()||id.length>100)||new Set(b.ids).size!==b.ids.length)fail('เลือกสินค้า 1–100 รายการและสถานะที่ถูกต้อง');

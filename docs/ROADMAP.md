@@ -187,3 +187,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Category choices show whole-shop counts, include uncategorized products and preserve literal names safely. Clear Filters resets search/category/status while keeping the selected page size. Rows display their category.
 - Filter changes reset to page one and reuse the existing page-scoped bulk selection reset. Responsive grid controls share a 48px height; public storefront, API and SEO behavior are unchanged.
 - Tests cover a last-page SKU, seller descriptions, attributes, combined status/category conditions, uncategorized items, empty results, counts and escaped category labels. Suite: 47 passing tests; real-device visual QA pending.
+
+### Bulk category management
+- Selected dashboard products can be assigned an existing or new category, or have category removed with a separate explicit action. Every action confirms the number selected; the existing 100-item, visible-page selection rules apply.
+- Owner-scoped POST bulk-category validates IDs/category and uses a count-guarded atomic update. Missing/foreign-shop IDs reject the entire request. Only category and updated_at change; status, content, media and checkout links remain intact.
+- Pending requests lock category/status/selection controls; failures retain selection and input for retry. On success, category choices/counts refresh and the filter switches to the assigned category (or uncategorized), with page one selected.
+- API and DOM coverage checks input limits, all-or-none behavior, owner isolation, preservation, confirmation, locking/retry and explicit clear. Suite: 49 tests pass. No schema migration; real-device visual QA pending.
