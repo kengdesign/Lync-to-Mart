@@ -181,3 +181,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Upload/save operations block navigation with a notice. Save temporarily makes the form inert and blocks concurrent upload/delete/save handlers; a failed save retains edits and restores interaction. Successful save resets the baseline and normal rendering removes the old listener.
 - Native beforeunload warning covers dirty/busy connected forms; browser-specific limitations remain and there is no autosave. Preview links open another tab without discarding the current form.
 - DOM coverage checks each field category, revert/save, discard/cancel, busy navigation and listener cleanup. Suite: 45 passing tests; live-device visual and native-prompt QA remains pending.
+
+### Dashboard catalog search and category filters
+- Product management searches saved name, plain-text description, category, variant SKU and attribute names/values across the entire loaded shop catalog, before pagination. Search is case-insensitive; status and exact category filters combine with it.
+- Category choices show whole-shop counts, include uncategorized products and preserve literal names safely. Clear Filters resets search/category/status while keeping the selected page size. Rows display their category.
+- Filter changes reset to page one and reuse the existing page-scoped bulk selection reset. Responsive grid controls share a 48px height; public storefront, API and SEO behavior are unchanged.
+- Tests cover a last-page SKU, seller descriptions, attributes, combined status/category conditions, uncategorized items, empty results, counts and escaped category labels. Suite: 47 passing tests; real-device visual QA pending.
