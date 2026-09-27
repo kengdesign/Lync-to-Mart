@@ -231,3 +231,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Visible search/category chips let visitors remove one filter or clear both, retaining selected sort and private preview theme while returning to page one.
 - Empty-results recovery now also preserves sorting. Controls are server-rendered links using existing catalog navigation, work without JavaScript, wrap on small screens and follow all theme palettes. No additional requests/dependencies.
 - Catalog and theme regression checks include retained sort/theme, individual removal and no chips on an unfiltered page.
+
+### Search discovery preparation (2026-09-27)
+- Production robots.txt advertises sitemap.xml and excludes API, private preview and outbound tracking routes. Other environments disallow crawling and return 404 for sitemap endpoints.
+- Sitemap index partitions published shops into groups of 100. Each sitemap lists each published shop's default catalog pages using the same 12-item page size and only published product counts; excludes filters, alternative sorts and drafts. No invented last-modified timestamps.
+- Supports GET/HEAD; dynamic, uncached output reflects publication changes. No migrations, cron jobs, media loads or external services.
+- Tested public/draft isolation, page counts, shard boundaries, HEAD and staging restrictions. Production hostname, Cloudflare bot rules and Search Console verification remain launch tasks; no indexing outcome is guaranteed.

@@ -1,3 +1,4 @@
+import {discovery} from './discovery.mjs';
 import {effectivePlan,planExpression,planBindings} from './plans.mjs';
 import {validTheme,paidThemes} from '../public/shop-themes.js';
 import {issueImportReceipt,savedProvenance} from './provenance.mjs';
@@ -26,6 +27,7 @@ async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
  if(['POST','PUT','DELETE'].includes(method)&&req.headers.get('origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
+ const discovered=await discovery(req,env);if(discovered)return discovered;
  if(p==='/api/login'&&method==='POST'){
   const b=await body(req),email=clean(b.email,254).toLowerCase(),password=typeof b.password==='string'?b.password:'';
   if(password.length>256)fail('ข้อมูลไม่ถูกต้อง');
