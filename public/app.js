@@ -1,4 +1,4 @@
-import {mountSellerHelp} from './seller-help.js?v=1';
+import {mountSellerHelp} from './seller-help.js?v=2';
 import {themes,paidThemes,effectiveTheme} from './shop-themes.js?v=1';
 import {mountCatalogExport} from './catalog-export.js?v=export1';
 import {guardStoreForm} from './store-guard.js?v=storeguard1';

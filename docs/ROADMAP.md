@@ -275,3 +275,7 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Native FAQ disclosures explain import/save/publish, shop visibility, trash, manual refresh, affiliate destination, click metrics, preview links and share caching.
 - Local content only; no new API calls, dependencies or account mutations. Existing navigation guard remains in effect; mobile navigation uses a balanced three-column grid.
 - Major launch work remains identity integration, confirmed plans/tax/billing workflow, production hostname and launch QA. Stripe remains deferred.
+
+### Seller FAQ additions (2026-09-27)
+- Added four answers: password recovery/change, planned recurring billing and plan changes, full product quotas, and theme previews.
+- Monthly/yearly automatic renewal is described as the intended future opt-in subscription behavior. Billing is not active; effective dates, proration, cancellation and failed-payment policies remain to be finalized before launch.
