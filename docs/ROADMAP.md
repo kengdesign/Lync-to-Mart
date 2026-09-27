@@ -284,3 +284,17 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Storefront search now includes variant SKUs and attribute names/values (such as colors and sizes), matching seller catalog search. Filtering still precedes sorting and pagination.
 - Empty-results recovery preserves the selected sort and private preview theme, resetting only search/category/page.
 - Regression checks cover SKU case folding, variant matches across pages, category intersection, price sorting and preview recovery URLs. No extra requests or infrastructure.
+
+### Tiered storefront showcase proposal (2026-09-27)
+Shown on monthly and annual plan cards as planned, not available features. Both billing periods have identical entitlements. Existing themes, covers, featured pins and catalog remain unchanged.
+
+| Planned capability per shop | Free | Starter | Growth | Brand |
+|---|---|---|---|---|
+| Concurrent campaign images (excluding existing cover) | 0 | 1 | 3 | 5 |
+| Featured horizontal row | — | 4 products | 8 products | 8 products |
+| New arrivals horizontal row | — | — | 8 products | 8 products |
+| Section controls | — | Toggle, fixed order | Toggle, fixed order | Toggle and reorder |
+| Campaign image ordering | — | Single image | Yes | Yes |
+| Optional mobile image per campaign | — | — | — | Yes |
+
+Future implementation must enforce quotas server-side using effective account plan, reuse existing products and media accounting, show only published products publicly, hide empty sections, avoid repeating showcases on filtered/paginated catalog views, and optimize image sizes. Keep saved content when downgrading; finalize which over-limit sections remain visible before billing launch. No billing, schema migration or live entitlement changes in this update.
