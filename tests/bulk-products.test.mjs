@@ -46,3 +46,13 @@ test('bulk category UI confirms, keeps failed selections, locks status actions a
  input.value=' ใหม่ ';input.oninput();assert.equal(apply.disabled,false);await apply.onclick();assert.equal(calls,0);allow=true;const failed=apply.onclick();assert.ok(input.disabled);assert.ok(root.querySelector('[data-bulk="published"]').disabled);reject(new Error('ลองใหม่'));await failed;assert.ok(root.querySelector('[data-select-product]').checked);assert.equal(input.disabled,false);
  const retry=apply.onclick();assert.equal(payload.category,'ใหม่');resolve({ids:['one'],category:'ใหม่',count:1});await retry;assert.equal(saved.category,'ใหม่');const clear=root.querySelector('[data-remove-category]').onclick();assert.equal(payload.category,'');resolve({ids:['one'],category:'',count:1});await clear;assert.equal(saved.category,'');dom.window.close();
 });
+
+test('category panel cancels without writes, closes on empty selection and can reopen',()=>{
+ const dom=new JSDOM('<div><input type="checkbox" data-select-all><input type="checkbox" data-select-product="one"></div>'),root=dom.window.document.querySelector('div');let calls=0;
+ mountBulkProducts(root,{shopId:'shop',published:true,categories:[],toast(){},onSaved(){},confirm:()=>true,send:async()=>{calls++;}});
+ const all=root.querySelector('[data-select-all]'),open=root.querySelector('[data-open-category]'),panel=root.querySelector('.bulk-category'),input=root.querySelector('[data-category-name]');
+ all.click();open.click();input.value='ยังไม่บันทึก';input.oninput();root.querySelector('[data-cancel-category]').click();assert.ok(panel.hidden);assert.equal(input.value,'');assert.ok(root.querySelector('[data-select-product]').checked);assert.equal(calls,0);assert.equal(dom.window.document.activeElement,open);
+ open.click();root.querySelector('[data-clear]').click();assert.ok(panel.hidden);assert.equal(root.querySelector('[data-select-product]').checked,false);
+ all.click();open.click();assert.equal(panel.hidden,false);all.click();assert.ok(panel.hidden);
+ all.click();open.click();input.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));assert.ok(panel.hidden);assert.equal(calls,0);dom.window.close();
+});

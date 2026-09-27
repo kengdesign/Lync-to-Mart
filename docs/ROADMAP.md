@@ -193,3 +193,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Owner-scoped POST bulk-category validates IDs/category and uses a count-guarded atomic update. Missing/foreign-shop IDs reject the entire request. Only category and updated_at change; status, content, media and checkout links remain intact.
 - Pending requests lock category/status/selection controls; failures retain selection and input for retry. On success, category choices/counts refresh and the filter switches to the assigned category (or uncategorized), with page one selected.
 - API and DOM coverage checks input limits, all-or-none behavior, owner isolation, preservation, confirmation, locking/retry and explicit clear. Suite: 49 tests pass. No schema migration; real-device visual QA pending.
+
+### Bulk category cancellation fix
+- Fixed a stuck-panel state: clearing all product selections disabled the category toggle but left its panel visible. The panel now hides whenever selection reaches zero; Cancel Selection also clears the pending category input.
+- Added a dedicated Cancel button and Escape handling inside the category panel. Cancelling closes the panel, resets its inputs, preserves product selection and returns focus to the category toggle without an API write. Reopening remains available. In-flight write locks are unchanged.
+- Regression covers direct cancel, clearing selection, deselecting all, reopening and Escape. Suite: 50 tests pass. User's video attachment was unavailable; this fixes the reproduced code path, not a claim that every reported symptom was observed.
