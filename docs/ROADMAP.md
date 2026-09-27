@@ -210,3 +210,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Migration 0009 stores an allowlisted theme. API enforces paid access and ownership. Omitted theme preserves saved value; downgrade renders Classic without deleting the paid selection. Search, pagination, product content and SEO output remain shared.
 - Staging-only configured Brand entitlement for the owner of shop e635859a-7587-4568-b0c6-7a707f7e62fa, covering account quotas and branding as well as themes. Does not change users.plan_id or create billing. Production ignores override. Remove STAGING_TEST_PLAN/STAGING_TEST_SHOP_ID to end trial; handle quota reductions before moving to a real subscription.
 - Validation: 53 automated tests pass, including all paid tiers, free rejection, tenant isolation, invalid input, persistence, downgrade, public SSR and production ignoring test entitlement. Physical tablet/mobile testing remains a user staging check.
+
+### Try a theme before saving (2026-09-27)
+- Store settings includes a private theme-preview link reflecting the selected radio, opened only on request in another tab (no automatic iframe/network traffic).
+- Owner-only preview validates theme and plan, renders saved shop/product data with the requested palette without database writes. Search/category/page links retain preview theme; public URLs ignore theme overrides and canonical URLs exclude them.
+- Automated coverage verifies preview isolation, ownership, invalid values, free-plan rejection, retained query and unchanged persisted/public theme. Device visual review remains a staging check.

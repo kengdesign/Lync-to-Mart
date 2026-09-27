@@ -19,7 +19,14 @@ test('theme entitlement, ownership, persistence, downgrade and staging-only test
  env.STAGING_TEST_PLAN='brand';env.STAGING_TEST_SHOP_ID=id;
  const alice={id:'alice',plan_id:'free'},bob={id:'bob',plan_id:'free'};
  assert.equal((await effectivePlan(env,alice)).id,'brand');assert.equal((await effectivePlan(env,alice)).staging_test,true);assert.equal((await effectivePlan(env,bob)).id,'free');assert.equal((await save('midnight')).status,200);
- env.APP_ENV='production';assert.equal((await effectivePlan(env,alice)).id,'free');assert.equal((await save('ocean')).status,403);assert.match(await (await call('/shop/theme-test')).text(),/data-theme="classic"/);
+ const before=await DB.prepare('SELECT theme FROM shops WHERE id=?').bind(id).first();
+ const preview=await (await call('/preview/'+id+'?theme=ocean')).text();
+ assert.match(preview,/data-theme="ocean"/);assert.match(preview,/name="theme" value="ocean"/);assert.match(preview,/data-catalog-link href="[^"]*theme=ocean/);assert.match(preview,/noindex,nofollow/);
+ assert.equal((await DB.prepare('SELECT theme FROM shops WHERE id=?').bind(id).first()).theme,before.theme);
+ assert.match(await (await call('/shop/theme-test?theme=ocean')).text(),/data-theme="midnight"/);
+ assert.equal((await call('/preview/'+id+'?theme=ocean','GET',null,'bob')).status,404);
+ assert.equal((await call('/preview/'+id+'?theme=invalid')).status,400);
+ env.APP_ENV='production';assert.equal((await effectivePlan(env,alice)).id,'free');assert.equal((await save('ocean')).status,403);assert.equal((await call('/preview/'+id+'?theme=ocean')).status,403);assert.match(await (await call('/shop/theme-test')).text(),/data-theme="classic"/);
  assert.equal(effectiveTheme('<script>','brand'),'classic');assert.equal((await DB.prepare("SELECT plan_id FROM users WHERE id='alice'").first()).plan_id,'free');
  }finally{DB.close();}
 });

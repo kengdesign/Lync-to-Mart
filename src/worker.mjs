@@ -41,6 +41,7 @@ async function handle(req,env,ctx){
  if(p==='/api/logout'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(token)await query(env,'DELETE FROM sessions WHERE token_hash=?',await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'});}
  if(p.startsWith('/preview/')&&method==='GET'){
   const user=await owner(req,env),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
+  const requestedTheme=url.searchParams.get('theme');if(requestedTheme!==null){if(!validTheme(requestedTheme))fail('ธีมไม่ถูกต้อง');if(requestedTheme!=='classic'&&!paidThemes(plan.id))fail('ธีมนี้สำหรับแพ็กเกจ Starter, Growth และ Brand',403);shop.theme=requestedTheme;}
   const {results:products}=await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY featured DESC,created_at DESC,id DESC',shop.id).all();
   return html(storefront({...shop,branding:plan.branding,plan_id:plan.id},products,url.origin,true,true,url.searchParams));
  }
