@@ -259,3 +259,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Account/security shows active session count, explicitly distinct from physical devices, with refresh and confirmed sign-out elsewhere action.
 - Owner-authenticated same-origin POST removes only that user's other tokens, preserving the current session and other accounts. Expired tokens excluded from counts. No device fingerprints or IP collection added.
 - Local regression verifies tenant isolation, expired exclusion, CSRF rejection, current-session preservation and revoked-session denial. Live user sessions were not revoked during deployment.
+
+### Monthly / annual plan comparison (2026-09-27)
+- Package page switches existing API prices locally, without refetching usage or changing account entitlements.
+- Annual view leads with the full yearly amount, shows average/month and actual savings against twelve monthly payments; free plans show no artificial discount.
+- Accessible pressed-state controls retain focus and wrap with existing responsive cards. Billing remains unavailable; this is proposal comparison only.

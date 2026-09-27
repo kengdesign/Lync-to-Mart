@@ -125,3 +125,13 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .catalog-active-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0;font-size:.82rem}.catalog-active-filters>a{display:inline-flex;align-items:center;gap:10px;min-height:44px;max-width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;text-decoration:none;overflow-wrap:anywhere;background:var(--surface,#fff);color:var(--ink,#192329)}.catalog-active-filters>a>span{flex-shrink:0;font-size:1.1rem}.catalog-active-filters .catalog-clear{text-decoration:underline;border-color:transparent;background:transparent;color:var(--accent,var(--brand))}
 
 .account-security{max-width:640px}.account-security .inline-check{margin:16px 0}.account-security>p{overflow-wrap:anywhere}
+
+/* Package comparison: local-only price switching. */
+.plan-period{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:14px;background:white;margin-bottom:12px}
+.plan-period button{min-height:44px;min-width:110px;background:transparent;color:var(--muted)}
+.plan-period button[aria-pressed="true"]{background:var(--brand);color:white}
+.plan-price-detail{font-size:.88rem;margin:0 0 10px;color:var(--muted)}
+.plan-saving{font-size:.85rem;color:#9e1c1a;background:#fff5f4;padding:10px;border-radius:8px;margin:0}
+.plan [data-plan-price]{min-height:105px;font-variant-numeric:tabular-nums}
+.plan [data-plan-price] strong{margin:20px 0 12px}
+.plan-period~.plans{margin-bottom:20px}
