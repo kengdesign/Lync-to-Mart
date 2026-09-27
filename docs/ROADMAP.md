@@ -237,3 +237,10 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Sitemap index partitions published shops into groups of 100. Each sitemap lists each published shop's default catalog pages using the same 12-item page size and only published product counts; excludes filters, alternative sorts and drafts. No invented last-modified timestamps.
 - Supports GET/HEAD; dynamic, uncached output reflects publication changes. No migrations, cron jobs, media loads or external services.
 - Tested public/draft isolation, page counts, shard boundaries, HEAD and staging restrictions. Production hostname, Cloudflare bot rules and Search Console verification remain launch tasks; no indexing outcome is guaranteed.
+
+### Account password change (2026-09-27)
+- Account/security tab supports current/new/confirmation passwords, visibility toggle, password-manager autocomplete and navigation protection while saving.
+- Authenticated same-origin endpoint verifies current password, enforces 12–128 characters and confirmation, and limits verification attempts to five per 15 minutes per account.
+- Password update and revocation of every session for that user are atomic, guarded against concurrent password changes. Login session creation checks the password hash has not changed since verification. Other users are unaffected.
+- Successful UI returns to sign-in and clears inputs. No real user passwords were changed during deployment verification. Email recovery remains a separate future step.
+- Auth/tenant/rate-limit/session invalidation regression tests use local fixture accounts; deployment does not create new infrastructure.

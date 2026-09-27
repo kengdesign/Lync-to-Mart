@@ -1,3 +1,4 @@
+import {changePassword} from './account-security.mjs';
 import {discovery} from './discovery.mjs';
 import {effectivePlan,planExpression,planBindings} from './plans.mjs';
 import {validTheme,paidThemes} from '../public/shop-themes.js';
@@ -37,7 +38,7 @@ async function handle(req,env,ctx){
   const user=await query(env,'SELECT * FROM users WHERE email=?',email).first();
   const valid=await verifyPassword(password,user?.password||'00000000000000000000000000000000:0000000000000000000000000000000000000000000000000000000000000000');
   if(!user||!valid)fail('อีเมลหรือรหัสผ่านไม่ถูกต้อง',401);
-  const token=crypto.randomUUID()+crypto.randomUUID();await env.DB.batch([query(env,'DELETE FROM sessions WHERE expires<?',now()),query(env,'INSERT INTO sessions VALUES(?,?,?)',await hash(token),user.id,now()+86400)]);
+  const token=crypto.randomUUID()+crypto.randomUUID();const loginResult=await env.DB.batch([query(env,'DELETE FROM sessions WHERE expires<?',now()),query(env,'INSERT INTO sessions(token_hash,user_id,expires) SELECT ?,id,? FROM users WHERE id=? AND password=?',await hash(token),now()+86400,user.id,user.password)]);if(loginResult[1].meta.changes!==1)fail('ข้อมูลบัญชีเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่',401);
   return json({ok:true},200,{'Set-Cookie':`mart_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${url.protocol==='https:'?'; Secure':''}`});
  }
  if(p==='/api/logout'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(token)await query(env,'DELETE FROM sessions WHERE token_hash=?',await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'});}
@@ -77,6 +78,7 @@ async function handle(req,env,ctx){
  }
  if(p.startsWith('/api/')){
   const user=await owner(req,env),plan=await planFor(env,user);
+  if(p==='/api/account/password'&&method==='POST'){await changePassword(env,user,await body(req));return json({ok:true},200,{'Set-Cookie':`mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${url.protocol==='https:'?'; Secure':''}`});}
   if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:false}});}
   if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
