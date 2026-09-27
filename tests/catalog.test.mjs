@@ -20,6 +20,8 @@ test('catalog serves crawlable 12-item pages, full-shop search, safe canonical U
   assert.equal((await call('/shop/test-shop?page=4')).status,404);assert.equal((await call('/shop/test-shop?page=-1')).status,400);
   const empty=await(await call('/shop/test-shop?q=nomatch')).text();assert.equal(cards(empty).length,0);assert.match(empty,/ไม่พบสินค้าที่ตรงกับคำค้น/);
   assert.equal((await call('/preview/s1')).status,401);const preview=await(await call('/preview/s1?page=3',true)).text();assert.equal(cards(preview).length,2);assert.match(preview,/content="noindex,nofollow"/);assert.match(preview,/href="\/preview\/s1\?page=2"/);assert.doesNotMatch(preview,/href="\/go\//);
+  const active=await(await call('/preview/s1?q=nomatch&category='+encodeURIComponent('กีฬา')+'&sort=price-desc&theme=ocean',true)).text();
+  assert.match(active,/class="catalog-active-filters"/);assert.match(active,/class="catalog-clear" href="\/preview\/s1\?sort=price-desc&amp;theme=ocean"/);assert.match(active,/href="\/preview\/s1\?q=nomatch&amp;sort=price-desc&amp;theme=ocean"/);assert.match(active,/ล้างคำค้น nomatch/);assert.doesNotMatch(first,/class="catalog-active-filters"/);
   env.APP_ENV='staging';assert.match(await(await call('/shop/test-shop?page=2')).text(),/content="noindex,nofollow"/);
  }finally{DB.close();}
 });

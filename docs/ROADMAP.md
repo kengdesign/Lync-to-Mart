@@ -226,3 +226,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Search, category links and pagination preserve sorting, including private theme preview. Server renders each sorted page and product schema; alternate sort URLs are noindex/follow in production, while staging remains noindex/nofollow.
 - Responsive controls retain 48px height: four columns desktop, two tablet and stacked on narrow phones. No new dependencies or data requests added.
 - Automated tests cover ordering across page boundaries, unknown prices, variants, query fallback, retained links and SSR metadata. Physical device visual testing remains a staging check.
+
+### Active storefront filters (2026-09-27)
+- Visible search/category chips let visitors remove one filter or clear both, retaining selected sort and private preview theme while returning to page one.
+- Empty-results recovery now also preserves sorting. Controls are server-rendered links using existing catalog navigation, work without JavaScript, wrap on small screens and follow all theme palettes. No additional requests/dependencies.
+- Catalog and theme regression checks include retained sort/theme, individual removal and no chips on an unfiltered page.
