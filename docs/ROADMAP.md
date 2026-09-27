@@ -298,3 +298,12 @@ Shown on monthly and annual plan cards as planned, not available features. Both 
 | Optional mobile image per campaign | — | — | — | Yes |
 
 Future implementation must enforce quotas server-side using effective account plan, reuse existing products and media accounting, show only published products publicly, hide empty sections, avoid repeating showcases on filtered/paginated catalog views, and optimize image sizes. Keep saved content when downgrading; finalize which over-limit sections remain visible before billing launch. No billing, schema migration or live entitlement changes in this update.
+
+### Tiered storefront showcases available on Staging (2026-09-27)
+- Added dedicated Campaigns dashboard tab and migration 0011_shop_showcase.sql. Free/Starter/Growth/Brand limits are enforced on save and render using the effective plan, including the existing shop-specific Brand trial.
+- Campaigns support cover image, title, caption, alt text, enable/disable and optional link to an owned product or category. Growth/Brand can reorder images; Brand can reorder sections and add optional mobile artwork.
+- Browser resizes uploads to WebP (max 1600px desktop, 900px mobile, 3000px height, 1.5MB output). Server validates ownership, MIME and 1.5MB size; existing shared storage quota still applies. Removing an entry does not delete R2 files.
+- Featured and newest rows reuse published products, cap at 4/8 per plan, use native horizontal scroll with arrow controls, respect reduced motion and server-render content. No slider library, autoplay or extra product fetches.
+- Showcases live inside the replaceable catalog region, appear only on the unfiltered recommended first page, and hide when empty. Draft/private/over-limit campaign images require owner authentication unless already public through another published resource.
+- Downgrading clips visible campaigns, hides unsupported rows/mobile artwork and keeps stored data until owner explicitly saves edits. Existing over-limit entries must be removed before saving. No production/billing changes.
+- 61 regression tests passed, including tier limits, cross-tenant images/products, CSRF, public media access, escaping, downgrade and query suppression. DOM checks exercised editor controls for all tiers; real-device visual QA remains a user staging check.

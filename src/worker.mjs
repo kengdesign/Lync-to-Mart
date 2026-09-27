@@ -1,3 +1,5 @@
+import {showcaseLimits,readShowcase} from '../public/showcase-limits.js';
+import {saveShowcase} from './showcase.mjs';
 import {requestReset,resetPassword} from './password-recovery.mjs';
 import {changePassword} from './account-security.mjs';
 import {discovery} from './discovery.mjs';
@@ -66,7 +68,12 @@ async function handle(req,env,ctx){
  if(p.startsWith('/media/')&&['GET','HEAD'].includes(method)){
   const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 LIMIT 1",key,key,'src="/media/'+encodeURIComponent(key)+'"').first();
   const publicBrand=await query(env,'SELECT id FROM shops WHERE published=1 AND (logo_key=? OR cover_key=?) LIMIT 1',key,key).first();
-  if(!publicImage&&!publicBrand){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first())fail('ไม่พบรูปภาพ',404);}
+  let publicCampaign=false;
+  if(!publicImage&&!publicBrand){
+   const candidates=(await query(env,`SELECT s.showcase_json,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.published=1 AND EXISTS(SELECT 1 FROM json_each(s.showcase_json,'$.campaigns') c WHERE json_extract(c.value,'$.key')=? OR json_extract(c.value,'$.mobile')=?)`,...planBindings(env),key,key).all()).results;
+   publicCampaign=candidates.some(s=>{const limit=showcaseLimits(s.plan_id),data=readShowcase(s.showcase_json);return (data.campaigns||[]).slice(0,limit.images).some(c=>c.enabled&&(c.key===key||(limit.mobile&&c.mobile===key)));});
+  }
+  if(!publicImage&&!publicBrand&&!publicCampaign){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first())fail('ไม่พบรูปภาพ',404);}
   const metadata=await query(env,'SELECT mime,size FROM media WHERE key=?',key).first();if(!metadata)fail('ไม่พบไฟล์',404);
   const headers={'Content-Type':metadata.mime,'Cache-Control':'private, no-store','Accept-Ranges':'bytes','Content-Length':String(metadata.size)};
   let range;const requested=req.headers.get('range');
@@ -91,8 +98,9 @@ async function handle(req,env,ctx){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
    const id=crypto.randomUUID();try{const r=await query(env,'INSERT INTO shops(id,owner_id,slug,name) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM shops WHERE owner_id=?)<?',id,user.id,slug,name,user.id,plan.shops).run();if(!r.meta.changes)fail('จำนวนร้านครบตามแพ็กเกจแล้ว',409);}catch(err){if(err.message.includes('UNIQUE'))fail('ชื่อ URL นี้ถูกใช้แล้ว',409);throw err;}return json({id},201);
   }
-  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|bulk-category|trash))?$/);
+  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|bulk-category|trash|showcase))?$/);
   if(sm){const shop=await shopFor(env,sm[1],user);
+   if(sm[2]==='showcase'&&method==='PUT')return json(await saveShowcase(env,user,shop,plan,await body(req)));
    if(sm[2]==='trash'&&method==='GET')return json((await query(env,"SELECT id,deleted_at,json_extract(snapshot,'$.name') AS name,json_extract(snapshot,'$.image_key') AS image_key FROM product_trash WHERE shop_id=? ORDER BY deleted_at DESC,id DESC",shop.id).all()).results);
    if(sm[2]==='bulk-category'&&method==='POST'){
     const b=await body(req);

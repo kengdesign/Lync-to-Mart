@@ -24,3 +24,5 @@ document.addEventListener('input',event=>{if(event.target.id!=='catalog-search')
 document.addEventListener('change',event=>{if(['catalog-category','catalog-sort'].includes(event.target.id))navigate(searchURL(event.target.form),{scroll:true});});
 document.addEventListener('toggle',event=>{if(!event.target.matches('.product-card details'))return;const card=event.target.closest('.product-card');card.classList.toggle('expanded',!!card.querySelector('details[open]'));},true);
 window.addEventListener('popstate',()=>navigate(location.href,{historyMode:'none',scroll:true}));
+
+document.addEventListener('click',event=>{const button=event.target.closest('[data-rail]');if(!button)return;const rail=document.getElementById(button.dataset.rail);rail?.scrollBy({left:Number(button.dataset.direction)*rail.clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});});

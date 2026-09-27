@@ -1,0 +1,1 @@
+ALTER TABLE shops ADD COLUMN showcase_json TEXT NOT NULL DEFAULT '{}';
