@@ -269,3 +269,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Store settings shows current cover (logo fallback) beside editable share text, matching storefront metadata priorities. Upload/removal refreshes the preview without saving or refetching store data.
 - SEO field counters show input limits and whether store fallback is used. Empty descriptions use the same storefront default; missing/broken images have explanatory placeholders.
 - Labels clarify unsaved changes and platform-dependent rendering/cache. No SEO score, indexing promise, extra dependency or new infrastructure.
+
+### Seller guide (2026-09-27)
+- Added help navigation available before and after creating a shop, with five setup steps and direct links into existing dashboard tabs.
+- Native FAQ disclosures explain import/save/publish, shop visibility, trash, manual refresh, affiliate destination, click metrics, preview links and share caching.
+- Local content only; no new API calls, dependencies or account mutations. Existing navigation guard remains in effect; mobile navigation uses a balanced three-column grid.
+- Major launch work remains identity integration, confirmed plans/tax/billing workflow, production hostname and launch QA. Stripe remains deferred.
