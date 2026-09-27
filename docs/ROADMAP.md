@@ -250,3 +250,7 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - 256-bit random tokens stored as SHA-256 hashes, 30-minute expiry, password snapshot invalidation, atomic single-use reset plus revocation of all account sessions and tokens. GET never consumes token; URL fragment is removed from browser history on form mount. Link/open tracking disabled.
 - Generic request responses for account privacy; per-email and per-IP rate limits. Background delivery failure removes its token and logs only a generic error; frontend success is not a delivery receipt. No credentials or reset URLs logged.
 - 57 automated tests pass with simulated mail responses, including expiry/replay/concurrency, recipient restrictions and failure cleanup. Actual Postmark acceptance/inbox delivery still requires user-triggered staging test. No live password changed by verification.
+
+### Reset completion UX (2026-09-27)
+- Successful password reset now replaces the reset URL with / and immediately renders sign-in with a persistent success notice and focus on email. No timer, extra API request or automatic login. Failed resets remain on their form with the error.
+- Syntax checked; backend password/token/session behavior unchanged.
