@@ -181,3 +181,7 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .showcase-order-row{display:flex;gap:16px;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 @media(max-width:900px){.showcase-rail{grid-auto-columns:calc((100% - 32px)/3)}}
 @media(max-width:600px){.showcase-rail{grid-auto-columns:72%}.campaign-editor{padding:14px}.showcase-section .section-heading{align-items:center}}
+
+.trash-button{position:relative;margin-right:6px}
+.trash-count{position:absolute;top:-9px;right:-9px;min-width:22px;height:22px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--brand);color:white;border:2px solid white;font-size:11px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;pointer-events:none}
+.trash-count[hidden]{display:none}

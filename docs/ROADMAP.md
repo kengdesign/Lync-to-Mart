@@ -307,3 +307,7 @@ Future implementation must enforce quotas server-side using effective account pl
 - Showcases live inside the replaceable catalog region, appear only on the unfiltered recommended first page, and hide when empty. Draft/private/over-limit campaign images require owner authentication unless already public through another published resource.
 - Downgrading clips visible campaigns, hides unsupported rows/mobile artwork and keeps stored data until owner explicitly saves edits. Existing over-limit entries must be removed before saving. No production/billing changes.
 - 61 regression tests passed, including tier limits, cross-tenant images/products, CSRF, public media access, escaping, downgrade and query suppression. DOM checks exercised editor controls for all tiers; real-device visual QA remains a user staging check.
+
+### Product trash count badge (2026-09-27)
+- Product-list trash button displays a small count badge for the selected shop; zero hides the badge.
+- Owner-scoped count-only endpoint avoids downloading trash snapshots. Detached button guard prevents late responses from updating another shop; normal list reloads refresh after deletion/restoration.

@@ -98,9 +98,10 @@ async function handle(req,env,ctx){
    const b=await body(req),name=clean(b.name,100),slug=clean(b.slug,50).toLowerCase();if(!name||!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug))fail('กรอกชื่อร้านและชื่อ URL ภาษาอังกฤษ 3–50 ตัว');
    const id=crypto.randomUUID();try{const r=await query(env,'INSERT INTO shops(id,owner_id,slug,name) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM shops WHERE owner_id=?)<?',id,user.id,slug,name,user.id,plan.shops).run();if(!r.meta.changes)fail('จำนวนร้านครบตามแพ็กเกจแล้ว',409);}catch(err){if(err.message.includes('UNIQUE'))fail('ชื่อ URL นี้ถูกใช้แล้ว',409);throw err;}return json({id},201);
   }
-  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|bulk-category|trash|showcase))?$/);
+  const sm=p.match(/^\/api\/shops\/([^/]+)(?:\/(products|stats|share|analytics|duplicate|bulk-status|bulk-category|trash|trash-count|showcase))?$/);
   if(sm){const shop=await shopFor(env,sm[1],user);
    if(sm[2]==='showcase'&&method==='PUT')return json(await saveShowcase(env,user,shop,plan,await body(req)));
+   if(sm[2]==='trash-count'&&method==='GET')return json(await query(env,'SELECT COUNT(*) AS count FROM product_trash WHERE shop_id=?',shop.id).first());
    if(sm[2]==='trash'&&method==='GET')return json((await query(env,"SELECT id,deleted_at,json_extract(snapshot,'$.name') AS name,json_extract(snapshot,'$.image_key') AS image_key FROM product_trash WHERE shop_id=? ORDER BY deleted_at DESC,id DESC",shop.id).all()).results);
    if(sm[2]==='bulk-category'&&method==='POST'){
     const b=await body(req);
