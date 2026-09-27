@@ -175,3 +175,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Reload/navigation uses the browser's native beforeunload prompt while edits or requests are pending. Browsers control whether/how this prompt appears, especially on mobile; this is not autosave or crash recovery.
 - In-flight operations still block closing; successful save/delete and editor replacement clean up the listeners. Existing duplicate replacement has its own confirmation. Shop settings and the initial link-entry dialog are outside this product-form guard.
 - Guard and full editor DOM tests cover rich-text/gallery changes, cancellation/discard, pending imports, reverting, successful saves and listener cleanup. Suite: 44 passing tests; real-browser/device prompt behavior remains to be verified.
+
+### Unsaved store settings protection
+- Store settings now guard menu switches, shop selection, Create Another Shop and logout when named settings have changed. Includes hidden media keys/cover position, SEO, contact and publication fields. Cancelled shop changes restore the current picker value; selecting the already-active menu keeps the form.
+- Upload/save operations block navigation with a notice. Save temporarily makes the form inert and blocks concurrent upload/delete/save handlers; a failed save retains edits and restores interaction. Successful save resets the baseline and normal rendering removes the old listener.
+- Native beforeunload warning covers dirty/busy connected forms; browser-specific limitations remain and there is no autosave. Preview links open another tab without discarding the current form.
+- DOM coverage checks each field category, revert/save, discard/cancel, busy navigation and listener cleanup. Suite: 45 passing tests; live-device visual and native-prompt QA remains pending.
