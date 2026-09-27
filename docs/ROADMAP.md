@@ -254,3 +254,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 ### Reset completion UX (2026-09-27)
 - Successful password reset now replaces the reset URL with / and immediately renders sign-in with a persistent success notice and focus on email. No timer, extra API request or automatic login. Failed resets remain on their form with the error.
 - Syntax checked; backend password/token/session behavior unchanged.
+
+### Revoke other sessions (2026-09-27)
+- Account/security shows active session count, explicitly distinct from physical devices, with refresh and confirmed sign-out elsewhere action.
+- Owner-authenticated same-origin POST removes only that user's other tokens, preserving the current session and other accounts. Expired tokens excluded from counts. No device fingerprints or IP collection added.
+- Local regression verifies tenant isolation, expired exclusion, CSRF rejection, current-session preservation and revoked-session denial. Live user sessions were not revoked during deployment.
