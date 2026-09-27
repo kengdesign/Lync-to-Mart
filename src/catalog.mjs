@@ -6,7 +6,13 @@ export function catalogPage(products,params=new URLSearchParams()){
  if(!/^[1-9]\d{0,5}$/.test(raw))throw Object.assign(new Error('หมายเลขหน้าไม่ถูกต้อง'),{status:400});
  const page=Number(raw),q=(params.get('q')||'').trim().slice(0,180),category=(params.get('category')||'').slice(0,500);
  const requested=params.get('sort')||'recommended',sort=catalogSorts.some(([id])=>id===requested)?requested:'recommended';
- const matches=products.filter(p=>(!q||`${p.name} ${p.description} ${p.category}`.toLocaleLowerCase('th-TH').includes(q.toLocaleLowerCase('th-TH')))&&(!category||p.category===category));
+ const query=q.toLocaleLowerCase('th-TH');
+ const matches=products.filter(p=>{
+  if(category&&p.category!==category)return false;
+  if(!query)return true;
+  const values=[p.name,p.description,p.category,...(p.variants||[]).flatMap(v=>[v.sku,...(v.attributes||[]).flatMap(a=>[a.key,a.value])])];
+  return values.filter(value=>value!=null).join(' ').toLocaleLowerCase('th-TH').includes(query);
+ });
  if(sort==='newest')matches.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))||String(b.id).localeCompare(String(a.id)));
  if(sort.startsWith('price-')){const prices=new Map(matches.map(p=>[p,priceRange(p)?.[0]??null]));matches.sort((a,b)=>{const x=prices.get(a),y=prices.get(b);if(x===null)return y===null?0:1;if(y===null)return -1;return sort==='price-asc'?x-y:y-x;});}
  const pages=Math.max(1,Math.ceil(matches.length/PAGE_SIZE));

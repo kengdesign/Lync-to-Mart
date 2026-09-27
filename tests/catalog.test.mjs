@@ -21,7 +21,7 @@ test('catalog serves crawlable 12-item pages, full-shop search, safe canonical U
   const empty=await(await call('/shop/test-shop?q=nomatch')).text();assert.equal(cards(empty).length,0);assert.match(empty,/ไม่พบสินค้าที่ตรงกับคำค้น/);
   assert.equal((await call('/preview/s1')).status,401);const preview=await(await call('/preview/s1?page=3',true)).text();assert.equal(cards(preview).length,2);assert.match(preview,/content="noindex,nofollow"/);assert.match(preview,/href="\/preview\/s1\?page=2"/);assert.doesNotMatch(preview,/href="\/go\//);
   const active=await(await call('/preview/s1?q=nomatch&category='+encodeURIComponent('กีฬา')+'&sort=price-desc&theme=ocean',true)).text();
-  assert.match(active,/class="catalog-active-filters"/);assert.match(active,/class="catalog-clear" href="\/preview\/s1\?sort=price-desc&amp;theme=ocean"/);assert.match(active,/href="\/preview\/s1\?q=nomatch&amp;sort=price-desc&amp;theme=ocean"/);assert.match(active,/ล้างคำค้น nomatch/);assert.doesNotMatch(first,/class="catalog-active-filters"/);
+  assert.match(active,/href="\/preview\/s1\?sort=price-desc&amp;theme=ocean">ดูสินค้าทั้งหมด<\/a>/);assert.match(active,/class="catalog-active-filters"/);assert.match(active,/class="catalog-clear" href="\/preview\/s1\?sort=price-desc&amp;theme=ocean"/);assert.match(active,/href="\/preview\/s1\?q=nomatch&amp;sort=price-desc&amp;theme=ocean"/);assert.match(active,/ล้างคำค้น nomatch/);assert.doesNotMatch(first,/class="catalog-active-filters"/);
   env.APP_ENV='staging';assert.match(await(await call('/shop/test-shop?page=2')).text(),/content="noindex,nofollow"/);
  }finally{DB.close();}
 });
@@ -39,4 +39,14 @@ test('sorting applies before pagination, uses variant starting price and puts mi
  assert.equal(catalogPage(products,new URLSearchParams('sort=newest')).items[0].id,'14');
  assert.equal(catalogPage(products,new URLSearchParams('sort=bogus')).sort,'recommended');
  assert.equal(products[0].id,'0');assert.equal(catalogURL('/shop/test',{sort:'price-asc',category:'กีฬา',page:2}),'/shop/test?category='+encodeURIComponent('กีฬา')+'&sort=price-asc&page=2');
+});
+
+test('storefront search includes variant SKU and attributes before pagination and sorting',()=>{
+ const products=Array.from({length:15},(_,i)=>({id:String(i),name:'เสื้อ',description:'ผ้าฝ้าย',category:'เสื้อผ้า',price:i*100,variants:[{sku:'SHIRT-'+i,price:i*100,attributes:[{key:'สี',value:'แดง'},{key:'ไซส์',value:i===14?'XXL':'M'}]}]}));
+ assert.deepEqual(catalogPage(products,new URLSearchParams('q=shirt-14')).items.map(p=>p.id),['14']);
+ assert.deepEqual(catalogPage(products,new URLSearchParams('q=XXL')).items.map(p=>p.id),['14']);
+ assert.equal(catalogPage(products,new URLSearchParams('q='+encodeURIComponent('แดง')+'&page=2')).items.length,3);
+ assert.equal(catalogPage(products,new URLSearchParams('q=XXL&category='+encodeURIComponent('อาหาร'))).total,0);
+ assert.equal(catalogPage(products,new URLSearchParams('q='+encodeURIComponent('แดง')+'&sort=price-desc')).items[0].id,'14');
+ assert.equal(catalogPage([{id:'empty',name:'เปล่า'}],new URLSearchParams('q=undefined')).total,0);
 });

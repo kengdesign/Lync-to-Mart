@@ -279,3 +279,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 ### Seller FAQ additions (2026-09-27)
 - Added four answers: password recovery/change, planned recurring billing and plan changes, full product quotas, and theme previews.
 - Monthly/yearly automatic renewal is described as the intended future opt-in subscription behavior. Billing is not active; effective dates, proration, cancellation and failed-payment policies remain to be finalized before launch.
+
+### Catalog search consistency (2026-09-27)
+- Storefront search now includes variant SKUs and attribute names/values (such as colors and sizes), matching seller catalog search. Filtering still precedes sorting and pagination.
+- Empty-results recovery preserves the selected sort and private preview theme, resetting only search/category/page.
+- Regression checks cover SKU case folding, variant matches across pages, category intersection, price sorting and preview recovery URLs. No extra requests or infrastructure.
