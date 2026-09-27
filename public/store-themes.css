@@ -1,0 +1,15 @@
+/* Server-selected palettes: no theme scripts, fonts, images or layout duplication. */
+.store-body[data-theme="midnight"]{color-scheme:dark;--surface:#20242e;--canvas:#141720;--tint:#292d3b;--ink:#f2f3f7;--muted:#bbc2cf;--line:#434958;--brand:#c52a35;--accent:#ffa4aa;--radius:18px}
+.store-body[data-theme="ocean"]{--surface:#fff;--canvas:#f3f7fb;--tint:#e8f1fa;--ink:#172c42;--muted:#53677b;--line:#cedeea;--brand:#1765a3;--accent:#165b93;--radius:16px}
+.store-body[data-theme="sand"]{--surface:#fffdf8;--canvas:#f5f0e7;--tint:#eee5d6;--ink:#342d26;--muted:#6c6054;--line:#d9cdbd;--brand:#795334;--accent:#795334;--radius:8px}
+.store-body[data-theme]:not([data-theme="classic"]){background:var(--canvas);color:var(--ink)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.store-top,.shop-information,.product-card,.empty,.catalog-tools input,.catalog-tools select,.catalog-category-chips a,.catalog-pagination a,.light){background:var(--surface);color:var(--ink);border-color:var(--line)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.shop-profile,.shop-categories span,.featured-label,.product-category,.badge,th){background:var(--tint);color:var(--ink);border-color:var(--line)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.shop-profile,.shop-information,.product-card){border-radius:var(--radius);border-color:var(--line)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.shop-description,.shop-handle,.shop-facts dt,.shop-facts dd span,.store-note,.store-footer,.section-heading>span,.product-info p,.rich-content blockquote,.store-top span){color:var(--muted)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.shop-kicker,.shop-facts dd,.product-info>strong,.rich-content a,.product-link-hint){color:var(--accent)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.shop-facts,.variant-details,.product-details,td,th,.store-footer){border-color:var(--line)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.shop-facts .shop-joined,.product-title-link,.variant-details summary,.product-details summary){color:var(--ink)}
+.store-body[data-theme]:not([data-theme="classic"]) :is(.catalog-category-chips a[aria-current],.catalog-pagination a[aria-current]){background:var(--brand);border-color:var(--brand);color:#fff}
+.store-body[data-theme]:not([data-theme="classic"]) :is(input,select){color-scheme:inherit}
+.store-body[data-theme]:not([data-theme="classic"]) .no-photo{background:var(--tint);color:var(--muted)}

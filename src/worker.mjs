@@ -1,3 +1,5 @@
+import {effectivePlan,planExpression,planBindings} from './plans.mjs';
+import {validTheme,paidThemes} from '../public/shop-themes.js';
 import {issueImportReceipt,savedProvenance} from './provenance.mjs';
 import {trashProduct,ownedTrash,restoreProduct} from './trash.mjs';
 import {accountUsage,STORAGE_LIMIT} from './usage.mjs';
@@ -16,7 +18,7 @@ const query=(env,sql,...args)=>env.DB.prepare(sql).bind(...args);
 async function body(req){if(Number(req.headers.get('content-length'))>200000)fail('ข้อมูลยาวเกินไป',413);const text=await boundedHTML(req,200000);if(text.length>200000)fail('ข้อมูลยาวเกินไป',413);try{return JSON.parse(text);}catch{fail('รูปแบบข้อมูลไม่ถูกต้อง');}}
 async function owner(req,env){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(!token)fail('กรุณาเข้าสู่ระบบ',401);const u=await query(env,'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?',await hash(token),now()).first();if(!u)fail('กรุณาเข้าสู่ระบบอีกครั้ง',401);return u;}
 async function shopFor(env,id,user){const s=await query(env,'SELECT * FROM shops WHERE id=? AND owner_id=?',id,user.id).first();if(!s)fail('ไม่พบร้านค้า',404);return s;}
-async function planFor(env,user){return query(env,'SELECT * FROM plans WHERE id=?',user.plan_id).first();}
+const planFor=effectivePlan;
 async function event(env,shop,product,kind){await query(env,'INSERT INTO events(id,shop_id,product_id,kind,day) VALUES(?,?,?,?,?)',crypto.randomUUID(),shop,product,kind,new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'})).run();}
 function html(content,status=200){return new Response(content,{status,headers:{'content-type':'text/html; charset=utf-8','Cache-Control':'no-store'}});}
 function page(title,content){return `<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} | Lync to Mart</title><link rel="stylesheet" href="/styles.css"></head><body class="store-body">${content}</body></html>`;}
@@ -40,10 +42,10 @@ async function handle(req,env,ctx){
  if(p.startsWith('/preview/')&&method==='GET'){
   const user=await owner(req,env),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
   const {results:products}=await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY featured DESC,created_at DESC,id DESC',shop.id).all();
-  return html(storefront({...shop,branding:plan.branding},products,url.origin,true,true,url.searchParams));
+  return html(storefront({...shop,branding:plan.branding,plan_id:plan.id},products,url.origin,true,true,url.searchParams));
  }
  if(p.startsWith('/shop/')&&method==='GET'){
-  const slug=decodeURIComponent(p.slice(6));const s=await query(env,'SELECT s.*,pl.branding FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=u.plan_id WHERE s.slug=? AND s.published=1',slug).first();
+  const slug=decodeURIComponent(p.slice(6));const s=await query(env,`SELECT s.*,pl.branding,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.slug=? AND s.published=1`,...planBindings(env),slug).first();
   if(!s)return html(page('ไม่พบร้าน','<main class="missing"><h1>ร้านนี้ยังไม่เปิดให้เข้าชม</h1><p>ตรวจสอบลิงก์หรือติดต่อเจ้าของร้าน</p></main>'),404);
   const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY featured DESC,created_at DESC,id DESC",s.id).all();
   ctx.waitUntil(event(env,s.id,null,'view').catch(()=>{}));
@@ -105,7 +107,8 @@ async function handle(req,env,ctx){
    if(sm[2]==='share'&&method==='GET')return json(shopShare(shop,url.origin));
    if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}
     const coverY=b.cover_position_y===undefined?shop.cover_position_y:Number(b.cover_position_y);if(b.cover_position_y===null||b.cover_position_y===''||!Number.isInteger(coverY)||coverY<0||coverY>100)fail('ตำแหน่งภาพปกต้องอยู่ระหว่าง 0–100');
-    await query(env,'UPDATE shops SET name=?,description=?,line_url=?,published=?,logo_key=?,cover_key=?,seo_title=?,seo_description=?,cover_position_y=? WHERE id=? AND owner_id=?',name,clean(b.description,1500),line,b.published===true?1:0,images.logo_key,images.cover_key,b.seo_title===undefined?shop.seo_title:clean(b.seo_title,100),b.seo_description===undefined?shop.seo_description:clean(b.seo_description,200),coverY,shop.id,user.id).run();return json({ok:true});}
+    const theme=b.theme===undefined?shop.theme:b.theme;if(!validTheme(theme))fail('ธีมไม่ถูกต้อง');if(b.theme!==undefined&&theme!=='classic'&&!paidThemes(plan.id))fail('ธีมนี้สำหรับแพ็กเกจ Starter, Growth และ Brand',403);
+    await query(env,'UPDATE shops SET name=?,description=?,line_url=?,published=?,logo_key=?,cover_key=?,seo_title=?,seo_description=?,cover_position_y=?,theme=? WHERE id=? AND owner_id=?',name,clean(b.description,1500),line,b.published===true?1:0,images.logo_key,images.cover_key,b.seo_title===undefined?shop.seo_title:clean(b.seo_title,100),b.seo_description===undefined?shop.seo_description:clean(b.seo_description,200),coverY,theme,shop.id,user.id).run();return json({ok:true});}
    if(sm[2]==='products'&&method==='GET')return json((await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY featured DESC,created_at DESC,id DESC',shop.id).all()).results.map(productRecord));
    if(sm[2]==='analytics'&&method==='GET'){
     const days=url.searchParams.get('days')||'30';if(!['7','30'].includes(days))fail('เลือกช่วงเวลา 7 หรือ 30 วัน');
