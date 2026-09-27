@@ -215,3 +215,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Store settings includes a private theme-preview link reflecting the selected radio, opened only on request in another tab (no automatic iframe/network traffic).
 - Owner-only preview validates theme and plan, renders saved shop/product data with the requested palette without database writes. Search/category/page links retain preview theme; public URLs ignore theme overrides and canonical URLs exclude them.
 - Automated coverage verifies preview isolation, ownership, invalid values, free-plan rejection, retained query and unchanged persisted/public theme. Device visual review remains a staging check.
+
+### Plan entitlement clarity (2026-09-27)
+- Plan cards now list theme access, import and QR sharing alongside account-wide shop/product limits. Paid tiers share the same four themes; Free has Classic Light.
+- Usage API and account usage panel carry the staging-test flag, with an explicit no-charge, staging-only notice. Current plan card labels distinguish test entitlement from a subscription.
+- Reuses existing requests and responsive plan cards; adds no assets or dependencies. Usage and theme entitlement regression tests pass.

@@ -10,5 +10,5 @@ export async function accountUsage(env,user,plan){
  const {results:shops}=await env.DB.prepare(`SELECT s.id,s.name,s.published,COUNT(p.id) AS products,
  COALESCE(SUM(CASE WHEN p.status='published' THEN 1 ELSE 0 END),0) AS published_products
  FROM shops s LEFT JOIN products p ON p.shop_id=s.id WHERE s.owner_id=? GROUP BY s.id ORDER BY s.created_at,s.id`).bind(user.id).all();
- return {plan:{id:plan.id,name:plan.name},shops:quota(totals.shops,plan.shops),products:quota(totals.products,plan.products),storage:{...quota(totals.bytes,STORAGE_LIMIT),files:totals.files,image_bytes:totals.bytes-totals.video_bytes,video_bytes:totals.video_bytes},stores:shops};
+ return {plan:{id:plan.id,name:plan.name,staging_test:plan.staging_test===true},shops:quota(totals.shops,plan.shops),products:quota(totals.products,plan.products),storage:{...quota(totals.bytes,STORAGE_LIMIT),files:totals.files,image_bytes:totals.bytes-totals.video_bytes,video_bytes:totals.video_bytes},stores:shops};
 }
