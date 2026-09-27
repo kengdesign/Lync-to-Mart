@@ -13,6 +13,7 @@ test('catalog serves crawlable 12-item pages, full-shop search, safe canonical U
   const first=await(await call('/shop/test-shop')).text(),second=await(await call('/shop/test-shop?page=2')).text(),third=await(await call('/shop/test-shop?page=3')).text();
   assert.equal(cards(first).length,12);assert.equal(cards(second).length,12);assert.equal(cards(third).length,1);assert.equal(new Set([...cards(first),...cards(second),...cards(third)]).size,25);assert.ok(!cards(first).includes('25'));
   assert.match(first,/href="\/shop\/test-shop\?page=2" rel="next"/);assert.match(second,/<link rel="canonical" href="https:\/\/mart.test\/shop\/test-shop\?page=2">/);assert.equal(schema(second).mainEntity.itemListElement.length,12);assert.equal(schema(second).mainEntity.itemListElement[0].position,13);assert.match(first,/content="index,follow"/);
+  const sortedHTML=await(await call('/shop/test-shop?sort=price-asc')).text();assert.match(sortedHTML,/name="sort"/);assert.match(sortedHTML,/content="noindex,follow"/);assert.match(sortedHTML,/sort=price-asc&amp;page=2/);assert.match(sortedHTML,/<option value="price-asc" selected>/);
   assert.match(first,/class="product-extra-gallery"/);assert.match(first,/\/media\/alice%2Fextra/);
   const search=await(await call('/shop/test-shop?q='+encodeURIComponent('ค้นพบรายละเอียดปลายรายการ'))).text();assert.deepEqual(cards(search),['00']);assert.match(search,/content="noindex,follow"/);
   const filtered=await(await call('/shop/test-shop?category='+encodeURIComponent('กีฬา')+'&page=2')).text();assert.equal(cards(filtered).length,1);assert.match(filtered,/name="category"/);
@@ -25,4 +26,15 @@ test('catalog serves crawlable 12-item pages, full-shop search, safe canonical U
 test('catalog query parsing preserves filters and rejects invalid pages',()=>{
  assert.equal(catalogURL('/shop/test',{page:2,q:'สีแดง & "',category:'กีฬา / บอล'}),'/shop/test?q='+new URLSearchParams({q:'สีแดง & "',category:'กีฬา / บอล',page:'2'}).toString().slice(2));
  assert.throws(()=>catalogPage([],new URLSearchParams('page=1.5')),e=>e.status===400);assert.equal(catalogPage([]).pages,1);
+});
+test('sorting applies before pagination, uses variant starting price and puts missing prices last',()=>{
+ const products=Array.from({length:15},(_,i)=>({id:String(i),name:'สินค้า',description:'',category:'กีฬา',price:i*100,created_at:`2026-09-${String(i+1).padStart(2,'0')}`}));
+ products[0].price=null;products[1].variants=[{price:8000},{price:0}];
+ const sorted=catalogPage(products,new URLSearchParams('sort=price-asc'));
+ assert.equal(sorted.items[0].id,'1');assert.equal(sorted.items.length,12);
+ assert.deepEqual(catalogPage(products,new URLSearchParams('sort=price-asc&page=2')).items.map(p=>p.id),['13','14','0']);
+ assert.equal(catalogPage(products,new URLSearchParams('sort=price-desc')).items[0].id,'14');
+ assert.equal(catalogPage(products,new URLSearchParams('sort=newest')).items[0].id,'14');
+ assert.equal(catalogPage(products,new URLSearchParams('sort=bogus')).sort,'recommended');
+ assert.equal(products[0].id,'0');assert.equal(catalogURL('/shop/test',{sort:'price-asc',category:'กีฬา',page:2}),'/shop/test?category='+encodeURIComponent('กีฬา')+'&sort=price-asc&page=2');
 });

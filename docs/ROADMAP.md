@@ -220,3 +220,9 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Plan cards now list theme access, import and QR sharing alongside account-wide shop/product limits. Paid tiers share the same four themes; Free has Classic Light.
 - Usage API and account usage panel carry the staging-test flag, with an explicit no-charge, staging-only notice. Current plan card labels distinguish test entitlement from a subscription.
 - Reuses existing requests and responsive plan cards; adds no assets or dependencies. Usage and theme entitlement regression tests pass.
+
+### Storefront catalog sorting (2026-09-27)
+- Visitors can choose shop recommendations (existing featured-first order), newest, or starting price ascending/descending. Sort applies after filters but before 12-item pagination; variant minimum price matches displayed starting prices, with missing prices last in either direction and zero treated as a valid price.
+- Search, category links and pagination preserve sorting, including private theme preview. Server renders each sorted page and product schema; alternate sort URLs are noindex/follow in production, while staging remains noindex/nofollow.
+- Responsive controls retain 48px height: four columns desktop, two tablet and stacked on narrow phones. No new dependencies or data requests added.
+- Automated tests cover ordering across page boundaries, unknown prices, variants, query fallback, retained links and SSR metadata. Physical device visual testing remains a staging check.

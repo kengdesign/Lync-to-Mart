@@ -21,6 +21,6 @@ function searchURL(form){const url=new URL(form.action,location.origin);for(cons
 document.addEventListener('click',event=>{const link=event.target.closest('a[data-catalog-link]');if(!link||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();navigate(link.href,{scroll:true});});
 document.addEventListener('submit',event=>{if(!event.target.matches('.catalog-tools'))return;event.preventDefault();navigate(searchURL(event.target),{focusSearch:true});});
 document.addEventListener('input',event=>{if(event.target.id!=='catalog-search')return;clearTimeout(timer);controller?.abort();sequence++;document.querySelector('#catalog-region')?.removeAttribute('aria-busy');timer=setTimeout(()=>navigate(searchURL(event.target.form),{focusSearch:true}),450);});
-document.addEventListener('change',event=>{if(event.target.id==='catalog-category')navigate(searchURL(event.target.form),{scroll:true});});
+document.addEventListener('change',event=>{if(['catalog-category','catalog-sort'].includes(event.target.id))navigate(searchURL(event.target.form),{scroll:true});});
 document.addEventListener('toggle',event=>{if(!event.target.matches('.product-card details'))return;const card=event.target.closest('.product-card');card.classList.toggle('expanded',!!card.querySelector('details[open]'));},true);
 window.addEventListener('popstate',()=>navigate(location.href,{historyMode:'none',scroll:true}));
