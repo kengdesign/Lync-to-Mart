@@ -135,3 +135,10 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .plan [data-plan-price]{min-height:105px;font-variant-numeric:tabular-nums}
 .plan [data-plan-price] strong{margin:20px 0 12px}
 .plan-period~.plans{margin-bottom:20px}
+
+/* Share preview uses the same cover/logo priority as storefront metadata. */
+.share-preview{min-width:0;overflow-wrap:anywhere}
+.share-preview #share-image{display:block;width:100%;max-height:300px;object-fit:contain;background:#edf2f4;border-radius:8px;margin:12px 0}
+.share-preview #share-image[hidden],.share-preview #share-image-empty[hidden]{display:none}
+.share-preview #share-image-empty{padding:24px 12px;background:#edf2f4;border-radius:8px;text-align:center;font-size:.85rem}
+#seo-title-count,#seo-description-count{font-variant-numeric:tabular-nums}

@@ -264,3 +264,8 @@ Migration 0003 เพิ่มคอลัมน์ร้านเท่าน�
 - Package page switches existing API prices locally, without refetching usage or changing account entitlements.
 - Annual view leads with the full yearly amount, shows average/month and actual savings against twelve monthly payments; free plans show no artificial discount.
 - Accessible pressed-state controls retain focus and wrap with existing responsive cards. Billing remains unavailable; this is proposal comparison only.
+
+### Live sharing preview (2026-09-27)
+- Store settings shows current cover (logo fallback) beside editable share text, matching storefront metadata priorities. Upload/removal refreshes the preview without saving or refetching store data.
+- SEO field counters show input limits and whether store fallback is used. Empty descriptions use the same storefront default; missing/broken images have explanatory placeholders.
+- Labels clarify unsaved changes and platform-dependent rendering/cache. No SEO score, indexing promise, extra dependency or new infrastructure.
