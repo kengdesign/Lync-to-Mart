@@ -317,3 +317,6 @@ Future implementation must enforce quotas server-side using effective account pl
 - Disable directions at scroll boundaries, update on native touch/mouse scrolling and resize, and reconnect a single ResizeObserver after catalog navigation.
 - No new dependencies, polling, database changes or seller content changes.
 - Validation: syntax check and 62 tests, including overflow/edge/replacement regression coverage. Public browser pagination and empty-search recovery checked; physical mobile/tablet QA remains pending.
+
+### 2026-09-28 — Larger showcase arrows
+- 48px circular targets with 28px bold inline SVG chevrons, red high-contrast controls and readable inactive states. Keyboard labels and scroll-edge behavior retained; no dependencies added.
