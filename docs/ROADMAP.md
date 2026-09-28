@@ -325,3 +325,8 @@ Future implementation must enforce quotas server-side using effective account pl
 - Defer live search while an IME composition is active; cancel stale requests before composition changes the field.
 - Keep one history entry per sequence of typed searches, preserving the original page for Back. Explicit catalog navigation resets the sequence.
 - 63 automated tests pass, including composition suppression and search-history grouping. No schema or infrastructure changes.
+
+### 2026-09-28 — Live deferred and account usability
+- Owner explicitly deferred ThaiMart Live integration pending upstream capabilities; do not add live URL entry, scheduling, badges or iframe integration now.
+- Login and password-reset forms now offer an unchecked-by-default password visibility checkbox, consistent with account settings. No password persistence or authentication changes.
+- Identity/SSO still requires the existing Lyncto integration contract; Stripe remains deferred.
