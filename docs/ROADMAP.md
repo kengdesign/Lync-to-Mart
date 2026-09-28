@@ -383,3 +383,10 @@ Future implementation must enforce quotas server-side using effective account pl
 - Status changes require exact target email and reason. Self/Owner status changes forbidden to prevent lockout. Every create/plan/status change is audited. Billing is not charged/cancelled by these actions; Stripe is not yet integrated.
 - Admin audit tab renamed to cover member actions. All verification and signup preserve previously granted promotion.
 - 70 automated tests passed; UI DOM smoke validated filters, promotion preset, confirmation, add and cancel. Actual browser/device acceptance remains to be tested by owner.
+
+## 28 กันยายน 2026 — Role appointment UI
+- Thai labels distinguish system Owner (แอดมินสูงสุด), Admin (ผู้ดูแลระบบ), Support and merchant.
+- Owner can appoint verified, active members to Owner/Admin/Support, or remove non-Owner staff access.
+- Requires reason and exact target email confirmation; revokes target sessions/swaps and audits member_role. Plans remain unchanged.
+- Self changes and downgrading existing Owners are blocked in this release. No actual member role was changed during deployment.
+- 71 tests passed; DOM smoke checked labels, role selection, confirmation and cancellation.
