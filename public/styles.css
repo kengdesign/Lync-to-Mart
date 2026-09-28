@@ -192,3 +192,7 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .showcase-section button[data-rail]:focus-visible{outline:3px solid var(--ink,#192329);outline-offset:3px}
 .showcase-section button[data-rail]:disabled{cursor:default;opacity:1;color:#a86564;border-color:#d9b5b4;background:#f6eded;box-shadow:none;filter:none}
 @media(hover:hover){.showcase-section button[data-rail]:not(:disabled):hover{background:#E32321;color:#fff;filter:none}}
+
+/* Separate the main product catalog from the storefront sections above it. */
+#catalog-region>.section-heading{padding-top:24px;margin-bottom:24px}
+@media(max-width:600px){#catalog-region>.section-heading{padding-top:16px;margin-bottom:20px}}
