@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM} from 'jsdom';
+test('search waits for composition and groups typing history while retaining original page',async()=>{
+ const html='<div id="catalog-region"><form class="catalog-tools" action="/shop/test"><input id="catalog-search" name="q"></form><p id="catalog-error"></p></div>';
+ const dom=new JSDOM(html,{url:'https://example.com/shop/test',runScripts:'outside-only'}),w=dom.window;
+ let callback,requests=0;w.setTimeout=fn=>{callback=fn;return 1;};w.clearTimeout=()=>{callback=null;};
+ w.fetch=async()=>{requests++;return {ok:true,text:async()=>html};};
+ w.eval(await readFile(new URL('../public/storefront.js',import.meta.url),'utf8'));
+ let input=w.document.querySelector('input');
+ input.dispatchEvent(new w.CompositionEvent('compositionstart',{bubbles:true}));input.value='ท';
+ input.dispatchEvent(new w.InputEvent('input',{bubbles:true,isComposing:true}));
+ assert.equal(callback,null);assert.equal(requests,0);
+ input.value='ทดสอบ';input.dispatchEvent(new w.CompositionEvent('compositionend',{bubbles:true}));
+ await callback();assert.equal(requests,1);assert.equal(w.history.length,2);assert.equal(new URL(w.location.href).searchParams.get('q'),'ทดสอบ');
+ input=w.document.querySelector('input');input.value='ทดสอบใหม่';input.dispatchEvent(new w.InputEvent('input',{bubbles:true}));await callback();
+ assert.equal(requests,2);assert.equal(w.history.length,2);assert.equal(new URL(w.location.href).searchParams.get('q'),'ทดสอบใหม่');
+ w.close();
+});

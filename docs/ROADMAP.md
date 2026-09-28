@@ -320,3 +320,8 @@ Future implementation must enforce quotas server-side using effective account pl
 
 ### 2026-09-28 — Larger showcase arrows
 - 48px circular targets with 28px bold inline SVG chevrons, red high-contrast controls and readable inactive states. Keyboard labels and scroll-edge behavior retained; no dependencies added.
+
+### 2026-09-28 — Search input composition and history
+- Defer live search while an IME composition is active; cancel stale requests before composition changes the field.
+- Keep one history entry per sequence of typed searches, preserving the original page for Back. Explicit catalog navigation resets the sequence.
+- 63 automated tests pass, including composition suppression and search-history grouping. No schema or infrastructure changes.
