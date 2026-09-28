@@ -390,3 +390,9 @@ Future implementation must enforce quotas server-side using effective account pl
 - Requires reason and exact target email confirmation; revokes target sessions/swaps and audits member_role. Plans remain unchanged.
 - Self changes and downgrading existing Owners are blocked in this release. No actual member role was changed during deployment.
 - 71 tests passed; DOM smoke checked labels, role selection, confirmation and cancellation.
+
+## 28 September 2026 — VAT-inclusive pricing confirmed
+- User approved VAT 7% included in all advertised monthly/annual prices. Existing gross price amounts remain unchanged.
+- Pricing screen and FAQ now explicitly say inclusive VAT. Reviewed Line invoice/receipt example: 119 = 111.21 + 7.79.
+- Prepared docs/billing/STRIPE-SETUP.md with isolated Mart sandbox requirements and webhook/entitlement boundaries.
+- Stripe access blocked by reauthentication and connection unavailable; no Stripe settings/resources changed and no payments enabled.
