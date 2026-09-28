@@ -12,8 +12,8 @@ test('plan comparison uses API prices and preserves usage while switching period
  const root=dom.window.document.querySelector('#content');
  const items=[{id:'free',name:'Free',monthly:0,yearly:0},{id:'starter',name:'Starter',monthly:19900,yearly:199000},{id:'growth',name:'Growth',monthly:49900,yearly:499000},{id:'brand',name:'Brand',monthly:99000,yearly:990000}].map(p=>({...p,shops:1,products:30,branding:false}));
  let requests=0,mounts=0;
- const run=new Function('$','api','state','esc','money','paidThemes','mountAccountUsage','toast',code+';return plans();');
- await run(s=>dom.window.document.querySelector(s),async()=>{requests++;return items;},{tab:'plans',plan:{id:'brand',staging_test:true}},s=>s,c=>'฿'+(c/100).toLocaleString('th-TH',{maximumFractionDigits:2}),()=>true,({root})=>{mounts++;root.textContent='usage';},e=>{throw Error(e);});
+ const run=new Function('$','api','state','esc','money','paidThemes','mountAccountUsage','toast','mountBilling','send',code+';return plans();');
+ await run(s=>dom.window.document.querySelector(s),async()=>{requests++;return items;},{tab:'plans',plan:{id:'brand',staging_test:true}},s=>s,c=>'฿'+(c/100).toLocaleString('th-TH',{maximumFractionDigits:2}),()=>true,({root})=>{mounts++;root.textContent='usage';},e=>{throw Error(e);},()=>{},()=>{});
  const usage=root.querySelector('#account-usage');
  const buttons=root.querySelectorAll('[data-plan-period]');
  buttons[1].focus();buttons[1].click();

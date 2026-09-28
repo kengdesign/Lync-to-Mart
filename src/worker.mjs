@@ -1,3 +1,4 @@
+import {billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
 import {assertActive,manageMember,activeMemberSQL} from './member-controls.mjs';
 import {requestRegistration,completeRegistration} from './registration.mjs';
 import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
@@ -35,6 +36,7 @@ function page(title,content){return `<!doctype html><html lang="th"><head><meta 
 async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
+ if(p==='/api/billing/webhook'&&method==='POST')return json(await billingWebhook(req,env));
  if(['POST','PUT','DELETE'].includes(method)&&req.headers.get('origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
  if(p==='/api/admin/swap/stop'&&method==='POST'){await stopSwap(req,env);return json({ok:true},200,{'Set-Cookie':swapCookie(req)});}
  if(p==='/api/admin/swap/start'&&method==='POST'){const result=await startSwap(req,env,await realOwner(req,env),await body(req));return json({ok:true,shop_id:result.shop_id},200,{'Set-Cookie':swapCookie(req,result.token)});}
@@ -103,10 +105,15 @@ async function handle(req,env,ctx){
  if(p.startsWith('/api/')){
   const user=await owner(req,env),plan=await planFor(env,user);
   if(user.impersonation&&p.startsWith('/api/account/'))fail('โหมดเข้าดูแทนไม่เปิดข้อมูลความปลอดภัยของบัญชี',403);
+  if(p.startsWith('/api/billing/')&&user.impersonation)fail('โหมดเข้าดูแทนไม่สามารถเข้าถึงการชำระเงิน',403);
+  if(p==='/api/billing/status'&&method==='GET')return json(await billingStatus(env,user));
+  if(p==='/api/billing/checkout'&&method==='POST')return json(await checkout(env,user,await body(req),url.origin));
+  if(p==='/api/billing/refresh'&&method==='POST')return json(await refreshBilling(env,user));
+  if(p==='/api/billing/renewal'&&method==='POST')return json(await cancelRenewal(env,user,await body(req)));
   if(p==='/api/account/sessions'&&method==='GET'){const row=await query(env,'SELECT COUNT(*) AS active FROM sessions WHERE user_id=? AND expires>?',user.id,now()).first();return json({active:row.active,others:Math.max(0,row.active-1)});}
   if(p==='/api/account/logout-others'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];await query(env,'DELETE FROM sessions WHERE user_id=? AND token_hash<>?',user.id,await hash(token)).run();return json({ok:true});}
   if(p==='/api/account/password'&&method==='POST'){await changePassword(env,user,await body(req));return json({ok:true},200,{'Set-Cookie':`mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${url.protocol==='https:'?'; Secure':''}`});}
-  if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:false}});}
+  if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
   if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
   if(p==='/api/shops'&&method==='POST'){

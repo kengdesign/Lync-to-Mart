@@ -24,6 +24,10 @@ User-provided Line example: total 119.00 = net 111.21 + VAT 7.79. Both uploaded 
 
 ## Current status
 
-Pricing labels updated on Staging. No Stripe Checkout, billing webhook, payments or document download functionality was activated in this change. Stripe account listing returned reauthentication required; the Stripe connection then became unavailable. Await reconnection to inspect the sandbox and create isolated Mart resources.
+Pricing labels and sandbox billing implementation are prepared. Checkout remains disabled until runtime configuration is supplied. The GPT Stripe connector is unavailable; the user can create isolated Mart sandbox resources directly in Stripe Dashboard using the Thai setup guide. No document download or real payment functionality is activated.
 
 Reference: https://docs.stripe.com/billing/taxes/tax-rates
+
+## Sandbox implementation update
+
+Checkout, signed webhook reconciliation, renewal cancellation/resumption and a gated billing UI are implemented. See [Thai setup and test guide](STAGING-TEST-TH.md). API version pinned to documented `2025-09-30.clover`. Database migration 0017 is additive. No Stripe resources or runtime keys were created by this change; BILLING_ENABLED defaults off. Production explicitly blocked. Owner promotion precedence preserved, staging Brand fallback ends after first subscription. Local automated tests mock Stripe; real end-to-end testing remains blocked on sandbox configuration.

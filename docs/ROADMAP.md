@@ -396,3 +396,9 @@ Future implementation must enforce quotas server-side using effective account pl
 - Pricing screen and FAQ now explicitly say inclusive VAT. Reviewed Line invoice/receipt example: 119 = 111.21 + 7.79.
 - Prepared docs/billing/STRIPE-SETUP.md with isolated Mart sandbox requirements and webhook/entitlement boundaries.
 - Stripe access blocked by reauthentication and connection unavailable; no Stripe settings/resources changed and no payments enabled.
+
+### Stripe Sandbox preparation — 2026-09-28
+- Added gated sandbox-only Hosted Checkout, price/tax validation (THB inclusive VAT 7%), per-user checkout lock/idempotency, signed raw-body webhook verification and current-state reconciliation.
+- Billing records separate from admin promotions. UI offers status refresh and cancel/resume renewal; paid access expires safely even if a webhook is missed.
+- Staging setup manual: docs/billing/STAGING-TEST-TH.md. No Stripe resources changed; no real payment or production deployment. Runtime secrets still required.
+- Remaining billing: real Sandbox acceptance tests, plan changes/proration, Portal/document links, refunds/disputes, production tax/legal configuration and production rollout.
