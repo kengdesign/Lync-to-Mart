@@ -343,3 +343,12 @@ Future implementation must enforce quotas server-side using effective account pl
 - งานถัดไป: public signup + email verification, admin mutations + audit + additional authentication, Stripe test subscriptions, load test/backup restore, production domain.
 - ยังไม่ได้สร้าง production หรือแก้ DNS; เซสชันนี้ไม่มี Cloudflare management connector.
 - Profile sync กลับ WordPress เป็นส่วนเสริมภายหลังและไม่เป็น dependency ของ Mart.
+
+## 28 กันยายน 2026 — Owner support swap
+- แอดมินสูงสุด (owner เท่านั้น) เลือกร้านค้าและระบุเหตุผล เพื่อเปิดหลังบ้านบัญชีร้านค้าแบบอ่านอย่างเดียว 30 นาที.
+- แยก mart_swap cookie จาก mart_session; เก็บเฉพาะ hash และผูกกับเซสชัน Owner เดิม ตรวจ role ใหม่ทุกคำขอ.
+- มีแถบแจ้งตัวตนและปุ่มกลับแอดมิน; logout ระหว่าง Swap จะจบ Swap โดยไม่ออกจากบัญชี Owner.
+- บันทึกเริ่ม/จบและเหตุผลใน admin_audit; ไม่มีการเปิดเผยรหัสผ่านหรือสร้างเซสชันล็อกอินให้ร้านค้า.
+- บล็อก mutation ทุกเส้นทางระหว่าง Swap (ยกเว้นเริ่ม/จบ Swap และ logout) และปิด API ความปลอดภัยบัญชี.
+- Scope: ดูหลังบ้านของบัญชีเจ้าของร้านที่เลือก รวมร้านอื่นภายใต้บัญชีนั้นตามสิทธิ์บัญชี; ไม่ใช่โหมดแก้ไขแทนลูกค้า.
+- 65 automated tests passed, including role denial, CSRF, session binding, expiry, revocation, mutation denial and audit. DOM smoke checked dialog cancellation. Live authenticated UI still requires owner acceptance test.

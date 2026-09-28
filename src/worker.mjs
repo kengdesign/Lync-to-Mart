@@ -1,3 +1,4 @@
+import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
 import {adminData} from './admin.mjs';
 import {showcaseLimits,readShowcase} from '../public/showcase-limits.js';
 import {saveShowcase} from './showcase.mjs';
@@ -22,7 +23,8 @@ const clean=(x,max)=>typeof x==='string'?x.trim().slice(0,max):'';
 const now=()=>Math.floor(Date.now()/1000);
 const query=(env,sql,...args)=>env.DB.prepare(sql).bind(...args);
 async function body(req){if(Number(req.headers.get('content-length'))>200000)fail('ข้อมูลยาวเกินไป',413);const text=await boundedHTML(req,200000);if(text.length>200000)fail('ข้อมูลยาวเกินไป',413);try{return JSON.parse(text);}catch{fail('รูปแบบข้อมูลไม่ถูกต้อง');}}
-async function owner(req,env){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(!token)fail('กรุณาเข้าสู่ระบบ',401);const u=await query(env,'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?',await hash(token),now()).first();if(!u)fail('กรุณาเข้าสู่ระบบอีกครั้ง',401);return u;}
+async function realOwner(req,env){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(!token)fail('กรุณาเข้าสู่ระบบ',401);const u=await query(env,'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?',await hash(token),now()).first();if(!u)fail('กรุณาเข้าสู่ระบบอีกครั้ง',401);return u;}
+async function owner(req,env){return swapUser(req,env,await realOwner(req,env));}
 async function shopFor(env,id,user){const s=await query(env,'SELECT * FROM shops WHERE id=? AND owner_id=?',id,user.id).first();if(!s)fail('ไม่พบร้านค้า',404);return s;}
 const planFor=effectivePlan;
 async function event(env,shop,product,kind){await query(env,'INSERT INTO events(id,shop_id,product_id,kind,day) VALUES(?,?,?,?,?)',crypto.randomUUID(),shop,product,kind,new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'})).run();}
@@ -32,7 +34,10 @@ async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
  if(['POST','PUT','DELETE'].includes(method)&&req.headers.get('origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
- if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await owner(req,env),url));
+ if(p==='/api/admin/swap/stop'&&method==='POST'){await stopSwap(req,env);return json({ok:true},200,{'Set-Cookie':swapCookie(req)});}
+ if(p==='/api/admin/swap/start'&&method==='POST'){const result=await startSwap(req,env,await realOwner(req,env),await body(req));return json({ok:true,shop_id:result.shop_id},200,{'Set-Cookie':swapCookie(req,result.token)});}
+ if(cookieValue(req,'mart_swap')&&['POST','PUT','DELETE'].includes(method)&&p!=='/api/logout')fail('กำลังเข้าดูแทนร้านค้าแบบอ่านอย่างเดียว กรุณากลับบัญชีแอดมินก่อนทำรายการ',403);
+ if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await realOwner(req,env),url));
  if((p==='/sh0rt-log1ng/'||p==='/sh0rt-log1ng')&&method==='GET')return env.ASSETS.fetch(new Request(new URL('/admin.html',url),req));
  const discovered=await discovery(req,env);if(discovered)return discovered;
  if(p==='/api/forgot-password'&&method==='POST')return json(await requestReset(req,env,await body(req),ctx));
@@ -49,6 +54,7 @@ async function handle(req,env,ctx){
   const token=crypto.randomUUID()+crypto.randomUUID();const loginResult=await env.DB.batch([query(env,'DELETE FROM sessions WHERE expires<?',now()),query(env,'INSERT INTO sessions(token_hash,user_id,expires) SELECT ?,id,? FROM users WHERE id=? AND password=?',await hash(token),now()+86400,user.id,user.password)]);if(loginResult[1].meta.changes!==1)fail('ข้อมูลบัญชีเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่',401);
   return json({ok:true},200,{'Set-Cookie':`mart_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${url.protocol==='https:'?'; Secure':''}`});
  }
+ if(p==='/api/logout'&&method==='POST'&&cookieValue(req,'mart_swap')){await stopSwap(req,env);return json({ok:true,return_to_admin:true},200,{'Set-Cookie':swapCookie(req)});}
  if(p==='/api/logout'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(token)await query(env,'DELETE FROM sessions WHERE token_hash=?',await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'});}
  if(p.startsWith('/preview/')&&method==='GET'){
   const user=await owner(req,env),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
@@ -91,10 +97,11 @@ async function handle(req,env,ctx){
  }
  if(p.startsWith('/api/')){
   const user=await owner(req,env),plan=await planFor(env,user);
+  if(user.impersonation&&p.startsWith('/api/account/'))fail('โหมดเข้าดูแทนไม่เปิดข้อมูลความปลอดภัยของบัญชี',403);
   if(p==='/api/account/sessions'&&method==='GET'){const row=await query(env,'SELECT COUNT(*) AS active FROM sessions WHERE user_id=? AND expires>?',user.id,now()).first();return json({active:row.active,others:Math.max(0,row.active-1)});}
   if(p==='/api/account/logout-others'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];await query(env,'DELETE FROM sessions WHERE user_id=? AND token_hash<>?',user.id,await hash(token)).run();return json({ok:true});}
   if(p==='/api/account/password'&&method==='POST'){await changePassword(env,user,await body(req));return json({ok:true},200,{'Set-Cookie':`mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${url.protocol==='https:'?'; Secure':''}`});}
-  if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:false}});}
+  if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:false}});}
   if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
   if(p==='/api/shops'&&method==='POST'){
