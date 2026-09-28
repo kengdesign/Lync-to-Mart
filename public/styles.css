@@ -207,3 +207,10 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 .plans .plan button[data-select-billing]{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;margin:12px 0 8px;padding:12px 16px;border:2px solid #E32321;border-radius:12px;background:#E32321;color:#fff;font-size:15px;font-weight:700;line-height:1.5;text-align:center;white-space:normal;cursor:pointer;box-shadow:0 3px 8px #e3232126}
 .plans .plan button[data-select-billing]:focus-visible{outline:3px solid #192329;outline-offset:4px}
 @media(hover:hover){.plans .plan button[data-select-billing]:hover{background:#c51c1a;border-color:#c51c1a;filter:none}}
+
+#billing-panel .billing-upgrade{margin:24px 0;padding:20px;border:1px solid #edcbc9;border-radius:14px;background:#fffafa}
+#billing-panel .billing-upgrade label{display:block;max-width:580px;margin:12px 0}
+#billing-panel .billing-upgrade select{width:100%;margin-top:8px}
+#billing-panel .billing-upgrade [data-upgrade-quote]:not(:empty){margin-top:20px}
+#billing-panel .billing-upgrade-amount{font-size:24px;font-weight:700;color:#bd1917}
+@media(max-width:600px){#billing-panel .billing-upgrade{padding:16px}#billing-panel .billing-upgrade button{width:100%;white-space:normal}}

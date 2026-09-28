@@ -402,3 +402,9 @@ Future implementation must enforce quotas server-side using effective account pl
 - Billing records separate from admin promotions. UI offers status refresh and cancel/resume renewal; paid access expires safely even if a webhook is missed.
 - Staging setup manual: docs/billing/STAGING-TEST-TH.md. No Stripe resources changed; no real payment or production deployment. Runtime secrets still required.
 - Remaining billing: real Sandbox acceptance tests, plan changes/proration, Portal/document links, refunds/disputes, production tax/legal configuration and production rollout.
+
+
+### 2026-09-28: Monthly fixed-difference upgrades (Staging)
+- Replaces the proposed time-proration policy for monthly upgrades: charge 300 / 791 / 491 THB inclusive VAT, preserve billing date, change existing subscription only after verified payment.
+- Durable Checkout operations and explicit cancellation/renewal choice. Tests cover response loss, duplicate requests, payment failures, stale quotes and webhook recovery.
+- Pending: merchant Sandbox acceptance, annual/interval changes, scheduled downgrades, refunds/review tooling and production rollout.

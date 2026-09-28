@@ -1,4 +1,4 @@
-import {billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
+import {previewUpgrade,startUpgrade,abandonUpgrade,billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
 import {assertActive,manageMember,activeMemberSQL} from './member-controls.mjs';
 import {requestRegistration,completeRegistration} from './registration.mjs';
 import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
@@ -108,6 +108,9 @@ async function handle(req,env,ctx){
   if(p.startsWith('/api/billing/')&&user.impersonation)fail('โหมดเข้าดูแทนไม่สามารถเข้าถึงการชำระเงิน',403);
   if(p==='/api/billing/status'&&method==='GET')return json(await billingStatus(env,user));
   if(p==='/api/billing/checkout'&&method==='POST')return json(await checkout(env,user,await body(req),url.origin));
+  if(p==='/api/billing/upgrade-preview'&&method==='POST')return json(await previewUpgrade(env,user,await body(req)));
+  if(p==='/api/billing/upgrade'&&method==='POST')return json(await startUpgrade(env,user,await body(req),url.origin));
+  if(p==='/api/billing/upgrade-cancel'&&method==='POST')return json(await abandonUpgrade(env,user));
   if(p==='/api/billing/refresh'&&method==='POST')return json(await refreshBilling(env,user));
   if(p==='/api/billing/renewal'&&method==='POST')return json(await cancelRenewal(env,user,await body(req)));
   if(p==='/api/account/sessions'&&method==='GET'){const row=await query(env,'SELECT COUNT(*) AS active FROM sessions WHERE user_id=? AND expires>?',user.id,now()).first();return json({active:row.active,others:Math.max(0,row.active-1)});}
