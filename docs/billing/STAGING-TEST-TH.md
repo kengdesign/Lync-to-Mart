@@ -152,3 +152,21 @@ Webhook ไม่ต้องมี Origin หรือ login cookie แต่�
 - migration 0019 is additive. Old unpaid upgrade Checkout sessions are expired for fresh policy calculation; paid historical sessions are honored.
 - Automated tests: monthly/yearly boundary, leap years/month ends, stale quotes, annual difference, full monthly/annual price and new term, no double debit request, retry recovery, cancellation, chained upgrades, unpaid trial rejection, next paid renewal.
 - Manual Sandbox acceptance still required for actual Stripe invoice/trial_end transitions (both renewal-on and canceled subscriptions); don't infer live acceptance from API mocks.
+
+
+## ลดแพ็กเกจเมื่อครบรอบ (Staging)
+
+- รองรับ Brand → Growth/Starter และ Growth → Starter ในรอบเดือนหรือปีเดิม วันนี้ไม่เก็บเงิน ไม่คืนเงินส่วนต่าง และไม่ลดสิทธิ์ทันที
+- เมนูแพ็กเกจ → ลดแพ็กเกจเมื่อครบรอบ → ดูรายละเอียด → ยืนยัน; แสดงวันมีผลและยอดต่ออายุรวม VAT
+- ยกเลิกคำขอก่อนวันมีผลได้ เป็นการ release schedule เท่านั้น ไม่ยกเลิกสมาชิกและไม่ปิดการต่ออายุ
+- ถ้ายกเลิกต่ออายุไว้ ต้องกดเปิดต่ออายุก่อนตั้งคำขอลดแพ็กเกจ ไม่มีการเปิดต่ออายุแอบแฝง
+- ถ้าจะอัปเกรดหรือยกเลิกต่ออายุ ต้องยกเลิกคำขอลดแพ็กเกจก่อน ป้องกันคำสั่งขัดกัน
+- หากต้องการกลับ Free ให้ใช้ปุ่มยกเลิกต่ออายุเดิม
+- Stripe Subscription schedules ผูก subscription เดิม: phase ปัจจุบันใช้ราคาเดิมจนถึง paid_until, phase ถัดไปใช้ราคาใหม่, proration_behavior=none, end_behavior=release; prepaid trial_end ถูกเก็บไว้ใน phase แรก
+- Restricted key อาจต้องเพิ่ม Subscription schedules: Write ในคอลัมน์ “ในบัญชีของคุณ” โดยใช้ key เดิม ไม่ต้องส่ง secret ในแชต ข้อผิดพลาด 403 จะแจ้งเฉพาะจุดนี้
+- ไม่ต้องเพิ่ม webhook event ใช้ customer.subscription.updated และ invoice.paid/payment_failed เดิม ดึงสถานะปัจจุบันเสมอ
+- ตาราง 0020 เก็บคำขอและ Stripe idempotency keys รองรับ retry เมื่อ response สูญหายทั้ง create/configure/release
+- ข้อมูลสินค้า/ร้านไม่ถูกลบเมื่อเปลี่ยนแพ็กเกจ การเพิ่มข้อมูลและฟีเจอร์ใช้โควตาแพ็กเกจใหม่ตามระบบเดิม
+- ชุดทดสอบจำลอง: รายเดือน/รายปี, ไม่เก็บวันนี้, ไม่ลดสิทธิ์ก่อนวัน, ยกเลิกคำขอ, ราคาถัดไป, ชำระไม่ผ่าน, retry/network loss, canceled renewal guard, prepaid term preservation
+- ขั้นรับรอง Sandbox: ตั้งคำขอจาก Brand → Growth ตรวจวัน/ราคาใน Stripe แล้วยกเลิกคำขอ; ใช้บัญชีทดสอบแยกและ Test Clock สำหรับ transition/renewal (ยังไม่ได้ทำแทนผู้ใช้)
+- ไม่เริ่มคำขอใน 2 ชั่วโมงสุดท้ายของรอบ; ไม่ยกเลิกคำขอภายใน 60 วินาทีก่อนมีผลเพื่อหลีกเลี่ยงแข่งกับ phase transition

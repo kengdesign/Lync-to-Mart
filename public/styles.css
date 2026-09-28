@@ -221,3 +221,5 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 
 #billing-panel .billing-renewal-summary{margin:16px 0;padding:16px;border:1px solid #d8dfe3;border-radius:10px;background:#fff;color:#192329;line-height:1.7}
 #billing-panel .billing-renewal-summary p{margin:8px 0 0}#billing-panel .billing-renewal-summary .muted{font-size:13px}
+
+#billing-panel .billing-downgrade{margin:24px 0;padding:20px;border:1px solid #d8dfe3;border-radius:14px;background:#f9fafb;line-height:1.7}#billing-panel .billing-downgrade label{display:block;max-width:580px;margin:12px 0}#billing-panel .billing-downgrade select{width:100%;margin-top:8px}#billing-panel [data-downgrade-quote]:not(:empty){margin-top:16px}@media(max-width:600px){#billing-panel .billing-downgrade{padding:16px}#billing-panel .billing-downgrade button{width:100%;white-space:normal}}

@@ -50,3 +50,16 @@ test('Growth to Brand separates 491 due today from optional 990 next renewal',as
  assert.match(summary.textContent,/ยอดชำระวันนี้ ฿491/);assert.match(summary.textContent,/รอบถัดไป: วันที่/);assert.match(summary.textContent,/เรียกเก็บ ฿990/);assert.match(root.querySelector('[data-upgrade-confirm]').textContent,/ชำระวันนี้ ฿491/);
  selection.value='keep';selection.dispatchEvent(new dom.window.Event('change'));assert.doesNotMatch(summary.textContent,/เรียกเก็บ ฿990/);assert.match(summary.textContent,/กลับ Free/);
 });
+test('downgrade confirms next-period price, preserves current plan and exposes cancel request',async t=>{
+ const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section'),calls=[];
+ const quote={from:'brand',plan:'growth',period:'monthly',amount:49900,effective_at:1793192614};
+ let data={ready:true,eligible:true,subscription:{status:'active',plan:'brand',period:'monthly',paid_until:quote.effective_at,cancel_at_period_end:false}};
+ await mountBilling({root,items:[{id:'starter',monthly:19900},{id:'growth',monthly:49900},{id:'brand',monthly:99000}],api:async()=>data,send:async(path,input)=>{calls.push({path,input});if(path==='/billing/downgrade-preview')return quote;data={...data,downgrade:{...quote,status:'scheduled'}};return data;}});
+ root.querySelector('[data-downgrade-preview]').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls.length,1);assert.match(root.querySelector('[data-downgrade-quote]').textContent,/วันนี้ไม่เรียกเก็บเงินเพิ่ม/);assert.match(root.querySelector('[data-downgrade-quote]').textContent,/฿499/);
+ root.querySelector('[data-downgrade-confirm]').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls[1].path,'/billing/downgrade');assert.deepEqual(calls[1].input,quote);assert.ok(root.querySelector('[data-downgrade-cancel]'));assert.equal(root.querySelector('[data-renewal]'),null);assert.equal(root.querySelector('[data-upgrade-preview]'),null);assert.match(root.textContent,/แพ็กเกจที่ชำระ: brand/);
+});
+test('canceled renewal must be resumed explicitly before scheduling a paid downgrade',async t=>{
+ const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section');
+ await mountBilling({root,items:[{id:'growth',monthly:49900},{id:'brand',monthly:99000}],api:async()=>({ready:true,eligible:true,subscription:{status:'active',plan:'brand',period:'monthly',cancel_at_period_end:true}})});
+ assert.equal(root.querySelector('[data-downgrade-preview]'),null);assert.match(root.querySelector('.billing-downgrade').textContent,/เปิดต่ออายุอัตโนมัติก่อน/);assert.ok(root.querySelector('[data-renewal]'));
+});

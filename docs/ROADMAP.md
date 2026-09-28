@@ -414,3 +414,9 @@ Future implementation must enforce quotas server-side using effective account pl
 - Monthly difference pricing only within first 15 days; annual difference pricing within first 6 calendar months (Thai timezone). Afterward full price buys a new monthly/yearly term; no remaining-time proration or carry-over.
 - Annual same-interval upgrades enabled. Policy displayed above plan cards and in help; server quote prevents stale-price confirmations.
 - Full-price Checkout defers the next recurring debit through a verified prepaid term; preserves renewal choice and guards duplicate billing. Requires manual Sandbox acceptance before production.
+
+
+### 2026-09-28: Scheduled paid-tier downgrades
+- Monthly acceptance reported passed by merchant; annual and full-cycle-reset acceptance remain separate gates.
+- Added same-interval paid downgrades at the next billing boundary through Stripe schedules; durable retries and cancel-request flow. Existing term and renewal consent preserved.
+- Data retained; plan changes only reflect current paid Stripe state. Requires Subscription schedules write permission and Sandbox phase-transition acceptance before production.
