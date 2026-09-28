@@ -64,3 +64,5 @@ npm run dev
 ไม่มีการเก็บบัตรหรือรับเงิน ไม่มีการแก้ DNS หรือแตะ production และไม่มี secrets อยู่ในแพ็กนี้
 
 หน้าจอมี responsive CSS แต่ยังไม่ได้ยืนยัน visual QA จริง: Cloud Browser ไม่สามารถเข้าถึง localhost ของ session นี้ได้ ต้องทดสอบ staging desktop/mobile ก่อนเปิดใช้
+
+Production target approved 2026-09-28: `https://mart.lyncto.link`, storefront `/shop/{slug}`, standalone admin `/sh0rt-log1ng/`. Domain not yet connected. WordPress SSO is deferred; see latest ROADMAP entry.

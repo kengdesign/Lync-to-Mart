@@ -4,7 +4,7 @@
 
 ร้านเล็กบน Thaimart สร้าง One-page โดยลดการกรอกข้อมูลซ้ำ ระบบเราช่วยนำเข้า/จัดระเบียบ/ตรวจทาน/นำเสนอ/วัดผล ส่วน checkout อยู่ที่ Thaimart รายได้หลักจาก subscription และบริการเสริม ไม่หักเปอร์เซ็นต์ยอดขายในโมเดลหลัก
 
-URL เป้าหมาย: lyncto.link/mart และ lyncto.link/shop/{store}
+URL เป้าหมายล่าสุด: mart.lyncto.link และ mart.lyncto.link/shop/{store} (อนุมัติ 28 กันยายน 2026)
 
 ## ลำดับการพัฒนา
 
@@ -330,3 +330,16 @@ Future implementation must enforce quotas server-side using effective account pl
 - Owner explicitly deferred ThaiMart Live integration pending upstream capabilities; do not add live URL entry, scheduling, badges or iframe integration now.
 - Login and password-reset forms now offer an unchecked-by-default password visibility checkbox, consistent with account settings. No password persistence or authentication changes.
 - Identity/SSO still requires the existing Lyncto integration contract; Stripe remains deferred.
+
+
+## 28 กันยายน 2026 — Mart เป็นบริการอิสระ (แทนแผน SSO เดิม)
+
+เจ้าของอนุมัติแยกสมาชิกและแอดมินจาก WordPress โดยสมบูรณ์ ไม่พัฒนา SSO/ปลั๊กอินเชื่อมเว็บหลักในขั้นนี้
+- Production ที่เสนอและอนุมัติ: mart.lyncto.link; หน้าร้าน /shop/{slug}; แอดมิน /sh0rt-log1ng/.
+- GitHub เก็บโค้ด; runtime ใช้ Workers + D1 + R2 อยู่แล้ว.
+- เพิ่มแอดมินระยะแรก: overview, users, shops, search และ pagination 25 รายการ; อ่านข้อมูลเท่านั้น.
+- สิทธิ์ตรวจจาก admin_roles แยกจาก plans; Staging อนุญาตเจ้าของ STAGING_ADMIN_SHOP_ID โดยเฉพาะ เงื่อนไขนี้ไม่ทำงานบน production.
+- Production ต้องสร้างฐาน/R2/Secrets แยกและกำหนด Owner โดยกระบวนการเฉพาะ ไม่มีการให้สิทธิ์จากอีเมลหรือแพ็กเกจ.
+- งานถัดไป: public signup + email verification, admin mutations + audit + additional authentication, Stripe test subscriptions, load test/backup restore, production domain.
+- ยังไม่ได้สร้าง production หรือแก้ DNS; เซสชันนี้ไม่มี Cloudflare management connector.
+- Profile sync กลับ WordPress เป็นส่วนเสริมภายหลังและไม่เป็น dependency ของ Mart.

@@ -1,3 +1,4 @@
+import {adminData} from './admin.mjs';
 import {showcaseLimits,readShowcase} from '../public/showcase-limits.js';
 import {saveShowcase} from './showcase.mjs';
 import {requestReset,resetPassword} from './password-recovery.mjs';
@@ -31,6 +32,8 @@ async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
  if(['POST','PUT','DELETE'].includes(method)&&req.headers.get('origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
+ if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await owner(req,env),url));
+ if((p==='/sh0rt-log1ng/'||p==='/sh0rt-log1ng')&&method==='GET')return env.ASSETS.fetch(new Request(new URL('/admin.html',url),req));
  const discovered=await discovery(req,env);if(discovered)return discovered;
  if(p==='/api/forgot-password'&&method==='POST')return json(await requestReset(req,env,await body(req),ctx));
  if(p==='/api/reset-password'&&method==='POST')return json(await resetPassword(req,env,await body(req)),200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=0'});

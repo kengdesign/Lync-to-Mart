@@ -8,7 +8,7 @@
 
 ## งานก่อนเปิดจริงที่ยังเหลือ
 
-- ตรวจระบบบัญชี Lyncto เดิมและตกลง SSO; ยังไม่มี public signup
+- ระบบสมาชิก Mart อิสระ: ยังต้องเพิ่ม public signup และยืนยันอีเมล; ยกเลิกแผน SSO ตามการอนุมัติล่าสุด
 - ยืนยันราคา ภาษี นโยบายเปลี่ยนแพ็กเกจ/ชำระไม่สำเร็จ ก่อนเชื่อม Stripe
 - เตรียม production hostname, แยกข้อมูล/Secrets และทดสอบ backup/restore
 - ตรวจการเปิด index/robots/sitemap เฉพาะ production; Staging ยังคง noindex
