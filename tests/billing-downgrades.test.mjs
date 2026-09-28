@@ -69,3 +69,26 @@ test('prepaid full term preserves trial_end in current schedule phase',async t=>
  await f.DB.prepare("INSERT INTO billing_upgrades(id,user_id,subscription_id,item_id,from_plan,to_plan,target_price,amount,period_end,cancel_at_period_end,session_params,status,created_at,updated_at,period,pricing_mode,applied_start,applied_end) VALUES('prepaid','u','sub_u','si_u','growth','brand','price_brand_monthly',99000,?,0,'{}','applied',?,?,'monthly','full',?,?)").bind(end,now(),now(),now()-86400,end).run();
  const quote=await previewDowngrade(f.env,f.user,{plan:'growth'});await scheduleDowngrade(f.env,f.user,f.input(quote));const params=f.calls.find(c=>c.path==='subscription_schedules/sub_sched_u'&&c.v).v;assert.equal(params['phases[0][trial_end]'],String(end));assert.equal(params['phases[1][trial_end]'],undefined);assert.equal((await refreshBilling(f.env,f.user)).subscription.plan,'brand');
 });
+
+test('flexible subscriptions can preview, schedule and cancel a same-interval downgrade',async t=>{
+ for(const period of ['monthly','yearly'])await t.test(period,async t=>{
+  const f=await fixture(t,period);f.sub.billing_mode={type:'flexible'};
+  const end=f.sub.items.data[0].current_period_end;
+  const quote=await previewDowngrade(f.env,f.user,{plan:'growth'});
+  assert.equal(quote.effective_at,end);assert.equal(quote.amount,amounts.growth[period]);
+  await scheduleDowngrade(f.env,f.user,f.input(quote));
+  assert.equal((await refreshBilling(f.env,f.user)).subscription.plan,'brand');
+  assert.equal(f.schedule.phases[1].start_date,end);
+  await cancelDowngrade(f.env,f.user);
+  assert.equal(f.sub.billing_mode.type,'flexible');assert.equal(f.sub.items.data[0].current_period_end,end);
+  assert.equal(f.sub.cancel_at_period_end,false);assert.equal(f.sub.schedule,null);
+ });
+});
+test('unsupported downgrade conditions explain the specific blocker without creating a schedule',async t=>{
+ const cases=[['schedule','sub_sched_external','ตารางเปลี่ยนแพ็กเกจ'],['pending_update',{},'รอชำระเงิน'],['pause_collection',{},'พักการเรียกเก็บเงิน'],['discounts',['di_special'],'ส่วนลดพิเศษ'],['automatic_tax',{enabled:true},'ภาษีอัตโนมัติ']];
+ for(const [field,value,message] of cases)await t.test(field,async t=>{
+  const f=await fixture(t);f.sub[field]=value;
+  await assert.rejects(previewDowngrade(f.env,f.user,{plan:'growth'}),e=>e.status===409&&e.message.includes(message));
+  assert.equal(f.calls.some(c=>c.path==='subscription_schedules'),false);
+ });
+});

@@ -219,7 +219,12 @@ async function downgradeQuote(env,row,plan){
  const sub=await upgradeSubscription(env,row),choice=upgradeChoice(env,sub),prepaid=await prepaidCycle(env,sub),item=sub.items?.data?.[0];
  if(!choice||(!prepaid&&(sub.status!=='active'||sub.latest_invoice?.status!=='paid'||sub.latest_invoice.customer!==row.customer_id)))fail('ต้องมีแพ็กเกจที่ชำระแล้วก่อนกำหนดลดแพ็กเกจ',409);
  if(sub.cancel_at_period_end||sub.cancel_at)fail('บัญชีนี้ยกเลิกการต่ออายุไว้ หากต้องการต่ออายุด้วยแพ็กเกจที่ต่ำลง ให้เปิดต่ออายุอัตโนมัติก่อน',409);
- if(sub.schedule||sub.pending_update||sub.pause_collection||sub.discounts?.length||item.discounts?.length||sub.automatic_tax?.enabled||sub.billing_mode?.type==='flexible')fail('รายการสมัครมีเงื่อนไขพิเศษ กรุณาติดต่อผู้ดูแลก่อนลดแพ็กเกจ',409);
+ // A same-interval schedule preserves the billing anchor in both classic and flexible mode.
+ if(sub.schedule)fail('มีตารางเปลี่ยนแพ็กเกจใน Stripe อยู่แล้ว กรุณาติดต่อผู้ดูแลเพื่อตรวจสอบตารางเดิมก่อน',409);
+ if(sub.pending_update)fail('มีการเปลี่ยนแพ็กเกจที่รอชำระเงินใน Stripe กรุณาจัดการรายการนั้นก่อนลดแพ็กเกจ',409);
+ if(sub.pause_collection)fail('บัญชีนี้พักการเรียกเก็บเงินอยู่ กรุณาติดต่อผู้ดูแลก่อนลดแพ็กเกจ',409);
+ if(sub.discounts?.length||item.discounts?.length)fail('รายการสมัครนี้มีส่วนลดพิเศษ กรุณาติดต่อผู้ดูแลเพื่อตรวจสอบราคาก่อนลดแพ็กเกจ',409);
+ if(sub.automatic_tax?.enabled)fail('รายการสมัครนี้ใช้ภาษีอัตโนมัติ กรุณาติดต่อผู้ดูแลเพื่อตรวจสอบการตั้งค่า VAT ก่อนลดแพ็กเกจ',409);
  if(item.current_period_end<=now()+7200)fail('ใกล้สิ้นสุดรอบแล้ว กรุณารอรอบใหม่ก่อนกำหนดลดแพ็กเกจ',409);
  if(amounts[plan][choice.period]>=amounts[choice.plan][choice.period])fail('เลือกแพ็กเกจที่ต่ำกว่าปัจจุบัน',409);
  const target=await validatedPrice(env,plan,choice.period);
