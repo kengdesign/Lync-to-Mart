@@ -1,3 +1,4 @@
+import {requestRegistration,completeRegistration} from './registration.mjs';
 import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
 import {adminData} from './admin.mjs';
 import {showcaseLimits,readShowcase} from '../public/showcase-limits.js';
@@ -39,6 +40,8 @@ async function handle(req,env,ctx){
  if(cookieValue(req,'mart_swap')&&['POST','PUT','DELETE'].includes(method)&&p!=='/api/logout')fail('กำลังเข้าดูแทนร้านค้าแบบอ่านอย่างเดียว กรุณากลับบัญชีแอดมินก่อนทำรายการ',403);
  if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await realOwner(req,env),url));
  if((p==='/sh0rt-log1ng/'||p==='/sh0rt-log1ng')&&method==='GET')return env.ASSETS.fetch(new Request(new URL('/admin.html',url),req));
+ if(p==='/api/register/request'&&method==='POST')return json(await requestRegistration(req,env,await body(req)));
+ if(p==='/api/register/complete'&&method==='POST')return json(await completeRegistration(req,env,await body(req)));
  const discovered=await discovery(req,env);if(discovered)return discovered;
  if(p==='/api/forgot-password'&&method==='POST')return json(await requestReset(req,env,await body(req),ctx));
  if(p==='/api/reset-password'&&method==='POST')return json(await resetPassword(req,env,await body(req)),200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=0'});
@@ -187,7 +190,7 @@ async function handle(req,env,ctx){
   return json({error:'ไม่พบรายการที่ขอ'},404);
  }
  if(method!=='GET'&&method!=='HEAD')return json({error:'ไม่พบรายการที่ขอ'},404);
- if(p==='/'||p==='/dashboard'||p==='/reset-password'||p==='/forgot-password')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
+ if(p==='/'||p==='/dashboard'||p==='/reset-password'||p==='/forgot-password'||p==='/register'||p==='/verify-email')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
  return env.ASSETS.fetch(req);
 }
 async function productData(b,env,user,existing={}){

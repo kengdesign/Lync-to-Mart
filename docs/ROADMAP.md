@@ -352,3 +352,15 @@ Future implementation must enforce quotas server-side using effective account pl
 - บล็อก mutation ทุกเส้นทางระหว่าง Swap (ยกเว้นเริ่ม/จบ Swap และ logout) และปิด API ความปลอดภัยบัญชี.
 - Scope: ดูหลังบ้านของบัญชีเจ้าของร้านที่เลือก รวมร้านอื่นภายใต้บัญชีนั้นตามสิทธิ์บัญชี; ไม่ใช่โหมดแก้ไขแทนลูกค้า.
 - 65 automated tests passed, including role denial, CSRF, session binding, expiry, revocation, mutation denial and audit. DOM smoke checked dialog cancellation. Live authenticated UI still requires owner acceptance test.
+
+
+## 28 กันยายน 2026 — Independent Mart registration
+- /register requests verification email; /verify-email accepts fragment token and sets a password. No account is created until verification POST succeeds.
+- Tokens: 32 random bytes, hash-only storage, 30-minute expiry, single use. All pending email tokens removed on success. Concurrent completion permits one account only.
+- Password selected by email holder after opening link; existing accounts cannot be overwritten by registration. Server enforces Free and never grants an admin role.
+- Added SIGNUP_ENABLED flag enabled only in current staging config. Existing login and recovery remain available.
+- Staging honors STAGING_MAIL_RECIPIENTS on request and completion. Owner's existing email cannot create a second account; add another real controlled test email to that comma-separated variable to test end-to-end. Never add secrets to git.
+- Postmark failures remove pending token and return retry message. IP/email/global mail rate caps; no tokens in logs, JSON responses or query strings.
+- Completed UI returns to login with success notice; no automatic login or automatic GET token consumption.
+- 68 tests pass; DOM smoke covers fragment removal, no auto-submit, password mismatch and completion. Actual Postmark inbox delivery for signup not tested in this change.
+- Production still needs policy/consent review, abuse/load evaluation, separate resources and custom domain setup.
