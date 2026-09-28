@@ -38,5 +38,15 @@ test('annual full-price confirmation clearly announces a new year instead of the
  const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section');
  const quote={from:'starter',plan:'growth',period:'yearly',pricing_mode:'full',amount:499000,next_amount:499000,period_end:Math.floor(Date.now()/1000)+100000,discount_deadline:Math.floor(Date.now()/1000)-1000,cancel_at_period_end:false};
  await mountBilling({root,items:[{id:'starter',yearly:199000},{id:'growth',yearly:499000},{id:'brand',yearly:990000}],api:async()=>({ready:true,eligible:true,subscription:{status:'active',plan:'starter',period:'yearly'}}),send:async()=>quote});
- root.querySelector('[data-upgrade-preview]').click();await new Promise(r=>setTimeout(r,0));const text=root.querySelector('[data-upgrade-quote]').textContent;assert.match(text,/ชำระราคาเต็ม ฿4,990/);assert.match(text,/เริ่มรอบใหม่เต็ม 1 ปี/);assert.match(text,/ไม่.*ทบเวลาคงเหลือ/);assert.doesNotMatch(text,/ไม่เริ่มรอบใหม่/);
+ root.querySelector('[data-upgrade-preview]').click();await new Promise(r=>setTimeout(r,0));const text=root.querySelector('[data-upgrade-quote]').textContent;assert.match(text,/ชำระวันนี้ \(ราคาเต็ม\) ฿4,990/);assert.match(text,/เริ่มรอบใหม่เต็ม 1 ปี/);assert.match(text,/ไม่.*ทบเวลาคงเหลือ/);assert.doesNotMatch(text,/ไม่เริ่มรอบใหม่/);
+});
+test('Growth to Brand separates 491 due today from optional 990 next renewal',async t=>{
+ const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section');
+ const quote={from:'growth',plan:'brand',period:'monthly',pricing_mode:'difference',amount:49100,next_amount:99000,period_end:1793192614,discount_deadline:1791896614,cancel_at_period_end:true};
+ await mountBilling({root,items:[{id:'growth',monthly:49900},{id:'brand',monthly:99000}],api:async()=>({ready:true,eligible:true,subscription:{status:'active',plan:'growth',period:'monthly',cancel_at_period_end:true}}),send:async()=>quote});
+ root.querySelector('[data-upgrade-preview]').click();await new Promise(r=>setTimeout(r,0));
+ const summary=root.querySelector('[data-upgrade-renewal-summary]'),selection=root.querySelector('[data-upgrade-renewal]');assert.match(summary.textContent,/ไม่มีการเรียกเก็บรอบถัดไป/);
+ selection.value='resume';selection.dispatchEvent(new dom.window.Event('change'));
+ assert.match(summary.textContent,/ยอดชำระวันนี้ ฿491/);assert.match(summary.textContent,/รอบถัดไป: วันที่/);assert.match(summary.textContent,/เรียกเก็บ ฿990/);assert.match(root.querySelector('[data-upgrade-confirm]').textContent,/ชำระวันนี้ ฿491/);
+ selection.value='keep';selection.dispatchEvent(new dom.window.Event('change'));assert.doesNotMatch(summary.textContent,/เรียกเก็บ ฿990/);assert.match(summary.textContent,/กลับ Free/);
 });
