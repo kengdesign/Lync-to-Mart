@@ -364,3 +364,11 @@ Future implementation must enforce quotas server-side using effective account pl
 - Completed UI returns to login with success notice; no automatic login or automatic GET token consumption.
 - 68 tests pass; DOM smoke covers fragment removal, no auto-submit, password mismatch and completion. Actual Postmark inbox delivery for signup not tested in this change.
 - Production still needs policy/consent review, abuse/load evaluation, separate resources and custom domain setup.
+
+## 28 กันยายน 2026 — Owner audit history
+- เพิ่มแท็บประวัติการเข้าดูร้านค้า สำหรับ Owner เท่านั้น; API บังคับสิทธิ์ด้วย.
+- แสดงผู้ดูแล ร้านค้า บัญชีเป้าหมาย เหตุผล และเวลา Asia/Bangkok; ค้นหาและแบ่งหน้า 25 รายการ.
+- LEFT JOIN รักษาการแสดง audit เมื่อบัญชี/ร้านค้าถูกลบ พร้อม fallback เป็น ID.
+- แสดงเฉพาะ start/explicit stop ที่มีบันทึกจริง ไม่อ้างว่า tab close/session expiry เป็น explicit logout.
+- เพิ่มดัชนีเรียงประวัติตามเวลาและ ID; ตรวจ XSS escaping ใน DOM smoke.
+- 69 tests passed; live owner UI acceptance pending.

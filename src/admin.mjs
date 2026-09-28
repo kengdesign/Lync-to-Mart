@@ -12,10 +12,18 @@ export async function adminData(env,user,url){
  const role=await adminRole(env,user);
  if(!role)throw Object.assign(new Error('บัญชีนี้ไม่มีสิทธิ์เข้าถึงแอดมิน Mart'),{status:403});
  const view=url.searchParams.get('view')||'overview';
- if(!['overview','users','shops'].includes(view))throw Object.assign(new Error('ไม่พบรายการ'),{status:404});
+ if(!['overview','users','shops','audit'].includes(view))throw Object.assign(new Error('ไม่พบรายการ'),{status:404});
  const page=Math.max(1,Math.min(100000,Number.parseInt(url.searchParams.get('page'),10)||1));
  const search=(url.searchParams.get('q')||'').trim().slice(0,100);
  const pattern='%'+search.replace(/[\\%_]/g,'\\$&')+'%';
+ if(view==='audit'){
+  if(role!=='owner')throw Object.assign(new Error('เฉพาะแอดมินสูงสุดเท่านั้นที่ดูประวัติการเข้าถึงได้'),{status:403});
+  const from=`FROM admin_audit a LEFT JOIN users actor ON actor.id=a.actor_id LEFT JOIN users target ON target.id=a.target_id LEFT JOIN shops s ON s.id=a.shop_id WHERE (COALESCE(actor.email,'') LIKE ? ESCAPE '\\' OR COALESCE(target.email,'') LIKE ? ESCAPE '\\' OR COALESCE(s.name,'') LIKE ? ESCAPE '\\' OR a.reason LIKE ? ESCAPE '\\' OR a.shop_id=?)`;
+  const args=[pattern,pattern,pattern,pattern,search];
+  const total=(await env.DB.prepare('SELECT COUNT(*) total '+from).bind(...args).first()).total;
+  const rows=(await env.DB.prepare(`SELECT a.id,a.actor_id,a.target_id,a.shop_id,a.action,a.reason,a.created_at,actor.email AS actor_email,target.email AS target_email,s.name AS shop_name ${from} ORDER BY a.created_at DESC,a.id DESC LIMIT 25 OFFSET ?`).bind(...args,(page-1)*25).all()).results;
+  return {role,view,rows,total,page,pages:Math.max(1,Math.ceil(total/25))};
+ }
  if(view==='overview'){
   const stats=await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM shops) shops,(SELECT COUNT(*) FROM shops WHERE published=1) published_shops,(SELECT COUNT(*) FROM products) products,(SELECT COUNT(*) FROM products WHERE status='published') published_products,(SELECT COALESCE(SUM(size),0) FROM media) storage_bytes`).first();
   return {role,view,stats,environment:env.APP_ENV||'unknown',billing_connected:false};
