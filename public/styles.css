@@ -214,3 +214,7 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 #billing-panel .billing-upgrade [data-upgrade-quote]:not(:empty){margin-top:20px}
 #billing-panel .billing-upgrade-amount{font-size:24px;font-weight:700;color:#bd1917}
 @media(max-width:600px){#billing-panel .billing-upgrade{padding:16px}#billing-panel .billing-upgrade button{width:100%;white-space:normal}}
+
+.upgrade-policy{margin:20px 0 28px;padding:22px;border:1px solid #edcbc9;border-left:4px solid #E32321;border-radius:12px;background:#fffafa;line-height:1.7}
+.upgrade-policy h3{margin:0 0 14px}.upgrade-policy-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.upgrade-policy-grid>div{padding:14px;background:#fff;border:1px solid #f0dedd;border-radius:10px}.upgrade-policy p{margin:8px 0}.upgrade-policy .muted{font-size:13px}
+@media(max-width:600px){.upgrade-policy{padding:16px}.upgrade-policy-grid{grid-template-columns:1fr;gap:10px}}

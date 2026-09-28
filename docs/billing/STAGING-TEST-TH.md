@@ -135,3 +135,20 @@ Webhook ไม่ต้องมี Origin หรือ login cookie แต่�
 - ไม่เริ่มรายการใน 2 ชั่วโมงสุดท้ายของรอบ; Checkout มีอายุ 1 ชั่วโมง ป้องกันแข่งกับการต่ออายุ
 - ถ้าจ่ายแล้วแต่ subscription เปลี่ยนเงื่อนไขหรือข้ามรอบก่อนประมวลผล จะขึ้นสถานะ review ให้ผู้ดูแลตรวจสอบ ไม่เรียกเก็บซ้ำ ไม่คืนเงินอัตโนมัติ
 - migration 0018 เก็บประวัติและรายการค้าง; ข้อมูลเก่าไม่ถูกลบ การย้อน code ไม่ต้องลบตาราง
+
+
+## นโยบายล่าสุด: ช่วงสิทธิ์หักส่วนต่างและรอบใหม่ (แทนนโยบายด้านบน)
+
+- รายเดือน: ภายใน 15×24 ชั่วโมงจากเริ่มรอบ จ่ายส่วนต่าง; เกินช่วงนี้จ่ายราคาเต็มและเริ่มรอบใหม่ 1 เดือน
+- รายปี: ภายใน 6 เดือนตามปฏิทินเวลาไทยจากเริ่มรอบ จ่ายส่วนต่างราคารายปี; เกินช่วงนี้จ่ายเต็มและเริ่มรอบใหม่ 1 ปี
+- เวลาตรงเส้นสิ้นสุดยังได้ส่วนต่าง หลังจากนั้น 1 วินาทีเป็นราคาเต็ม; วันปลายเดือน clamp เช่น 31 ส.ค. → 28/29 ก.พ.
+- การอัปเกรดส่วนต่างไม่รีเซตวันเริ่มรอบหรือช่วงส่วนต่าง อัปเกรดได้เฉพาะชนิดรอบเดิม ไม่สลับเดือน/ปี
+- ยอดยืนยันถูกคำนวณใหม่ฝั่ง server; ถ้าข้ามเส้นเวลาหลังดูยอดต้องดูยอดใหม่ ไม่เปลี่ยนยอดเรียกเก็บเงียบๆ เมื่อสร้าง Checkout แล้วจะล็อกยอดที่ยืนยันไว้ตลอดอายุรายการ 1 ชั่วโมง
+- ชำระเต็มแล้วเริ่มนับรอบใหม่เมื่อ server ยืนยัน paid ไม่หัก/ทบเวลาที่เหลือ
+- แสดงนโยบายเหนือการ์ดราคาแก่ทุกบัญชี พร้อมยอด วิธีคิด และวันสิ้นสุดสิทธิ์ในหน้าก่อนยืนยัน
+- Stripe implementation: one-time Checkout collects full price; existing subscription switches to target price with proration_behavior=none and trial_end at the new paid-term end. This defers the next debit instead of billing a duplicate full invoice via billing_cycle_anchor=now. Stripe Dashboard may show trialing internally, while Mart shows active ONLY with an applied, verified full-payment record matching subscription, plan and term. No free trial is offered to merchants.
+- Full-term reset requires classic billing mode; flexible mode is blocked before charging pending separate support. Existing ordinary subscriptions are unaffected.
+- Renew/cancel uses the new term end; default remains canceled if it was canceled. A later difference upgrade preserves the prepaid term and its original discount deadline.
+- migration 0019 is additive. Old unpaid upgrade Checkout sessions are expired for fresh policy calculation; paid historical sessions are honored.
+- Automated tests: monthly/yearly boundary, leap years/month ends, stale quotes, annual difference, full monthly/annual price and new term, no double debit request, retry recovery, cancellation, chained upgrades, unpaid trial rejection, next paid renewal.
+- Manual Sandbox acceptance still required for actual Stripe invoice/trial_end transitions (both renewal-on and canceled subscriptions); don't infer live acceptance from API mocks.

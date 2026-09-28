@@ -408,3 +408,9 @@ Future implementation must enforce quotas server-side using effective account pl
 - Replaces the proposed time-proration policy for monthly upgrades: charge 300 / 791 / 491 THB inclusive VAT, preserve billing date, change existing subscription only after verified payment.
 - Durable Checkout operations and explicit cancellation/renewal choice. Tests cover response loss, duplicate requests, payment failures, stale quotes and webhook recovery.
 - Pending: merchant Sandbox acceptance, annual/interval changes, scheduled downgrades, refunds/review tooling and production rollout.
+
+
+### 2026-09-28: Upgrade eligibility windows and full-price new terms
+- Monthly difference pricing only within first 15 days; annual difference pricing within first 6 calendar months (Thai timezone). Afterward full price buys a new monthly/yearly term; no remaining-time proration or carry-over.
+- Annual same-interval upgrades enabled. Policy displayed above plan cards and in help; server quote prevents stale-price confirmations.
+- Full-price Checkout defers the next recurring debit through a verified prepaid term; preserves renewal choice and guards duplicate billing. Requires manual Sandbox acceptance before production.

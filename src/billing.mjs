@@ -1,4 +1,5 @@
 // Sandbox-only integration. Production requires a separate reviewed rollout.
+import {addBillingMonths,upgradePolicy} from './billing-policy.mjs';
 import {recoveryLimit} from './password-recovery.mjs';
 import {boundedHTML} from './import.mjs';
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -54,10 +55,11 @@ async function reconcile(env,row){
  const items=sub.items?.data||[],choice=items.length===1&&items[0].quantity===1?selection(env,items[0].price):null;
  const invoice=sub.latest_invoice;
  const end=Number(items[0]?.current_period_end||0);
- const paid=choice&&sub.status==='active'&&invoice?.status==='paid'&&invoice.customer===row.customer_id&&end>now();
+ const prepaid=await prepaidCycle(env,sub);
+ const paid=choice&&end>now()&&((sub.status==='active'&&invoice?.status==='paid'&&invoice.customer===row.customer_id)||!!prepaid);
  const plan=paid?choice.plan:'free';
  await env.DB.batch([
- q(env,'UPDATE billing_accounts SET subscription_id=?,status=?,plan_id=?,period=?,paid_until=?,cancel_at_period_end=?,updated_at=? WHERE user_id=?',sub.id,sub.status,plan,choice?.period||null,paid?end:0,sub.cancel_at_period_end?1:0,now(),row.user_id),
+ q(env,'UPDATE billing_accounts SET subscription_id=?,status=?,plan_id=?,period=?,paid_until=?,cancel_at_period_end=?,updated_at=? WHERE user_id=?',sub.id,prepaid?'active':sub.status,plan,choice?.period||null,paid?end:0,sub.cancel_at_period_end?1:0,now(),row.user_id),
  q(env,'UPDATE users SET plan_id=? WHERE id=?',plan,row.user_id)
  ]);return account(env,row.user_id);
 }
@@ -104,26 +106,37 @@ export async function billingWebhook(req,env){
  await locked(env,row.user_id,async current=>{await reconcile(env,current);await q(env,'INSERT OR IGNORE INTO billing_events VALUES(?,?,?)',event.id,event.type,now()).run();});return {received:true};
 }
 
-// Monthly upgrades charge the full catalogue difference, never time-based prorations.
+// Upgrades within 15 days / 6 calendar months charge the catalogue difference. Later upgrades buy a new full term.
 const pendingUpgrade=(env,id)=>q(env,"SELECT * FROM billing_upgrades WHERE user_id=? AND status IN ('pending','review')",id).first();
-async function upgradeStatus(env,id){const u=await pendingUpgrade(env,id);return u?{id:u.id,plan:u.to_plan,amount:u.amount,status:u.status,cancel_at_period_end:!!u.cancel_at_period_end}:null;}
+async function upgradeStatus(env,id){const u=await pendingUpgrade(env,id);return u?{id:u.id,plan:u.to_plan,amount:u.amount,period:u.period,pricing_mode:u.pricing_mode,status:u.status,cancel_at_period_end:!!u.cancel_at_period_end}:null;}
 async function upgradeSubscription(env,row){
  const sub=await stripe(env,'subscriptions/'+row.subscription_id+'?expand[]=latest_invoice');
  if(sub.livemode!==false||sub.customer!==row.customer_id||sub.metadata?.app!=='lync-to-mart'||sub.metadata?.user_id!==row.user_id)fail('ข้อมูลการสมัครไม่ตรงกับบัญชี',409);
  return sub;
 }
 function upgradeChoice(env,sub){const item=sub.items?.data?.[0];return sub.items?.data?.length===1&&item.quantity===1?selection(env,item.price):null;}
+// A Stripe trial_end defers the next recurring debit after a separately paid full term.
+// Never grant trial access without our verified, applied full-price payment record.
+async function prepaidCycle(env,sub){
+ if(sub.status!=='trialing')return null;
+ const item=sub.items?.data?.[0],choice=upgradeChoice(env,sub);if(!choice||item.current_period_end!==sub.trial_end)return null;
+ const proof=await q(env,"SELECT id FROM billing_upgrades WHERE id=? AND subscription_id=? AND to_plan=? AND period=? AND status='applied'",sub.metadata?.mart_upgrade_id||'',sub.id,choice.plan,choice.period).first();if(!proof)return null;
+ return q(env,"SELECT * FROM billing_upgrades WHERE subscription_id=? AND status='applied' AND pricing_mode='full' AND period=? AND applied_end=? AND applied_end>? ORDER BY applied_start DESC LIMIT 1",sub.id,choice.period,sub.trial_end||0,now()).first();
+}
 async function upgradeQuote(env,row,plan){
  if(!Object.hasOwn(amounts,plan))fail('เลือกแพ็กเกจให้ถูกต้อง');
- if(!row.subscription_id)fail('ต้องมีแพ็กเกจรายเดือนที่ชำระแล้วก่อนอัปเกรด',409);
- const sub=await upgradeSubscription(env,row),choice=upgradeChoice(env,sub),item=sub.items?.data?.[0];
- if(sub.status!=='active'||sub.latest_invoice?.status!=='paid'||sub.latest_invoice.customer!==row.customer_id||choice?.period!=='monthly')fail('รุ่นนี้รองรับการอัปเกรดจากแพ็กเกจรายเดือนที่ชำระสำเร็จแล้ว',409);
+ if(!row.subscription_id)fail('ต้องมีแพ็กเกจที่ชำระแล้วก่อนอัปเกรด',409);
+ const sub=await upgradeSubscription(env,row),choice=upgradeChoice(env,sub),item=sub.items?.data?.[0],prepaid=await prepaidCycle(env,sub);
+ if(!choice||(!prepaid&&(sub.status!=='active'||sub.latest_invoice?.status!=='paid'||sub.latest_invoice.customer!==row.customer_id)))fail('ต้องใช้แพ็กเกจที่ชำระสำเร็จแล้วก่อนอัปเกรด',409);
  if(sub.schedule||sub.pending_update||sub.pause_collection||(sub.cancel_at&&sub.cancel_at!==item.current_period_end)||(sub.discounts?.length)||sub.automatic_tax?.enabled)fail('รายการสมัครมีเงื่อนไขพิเศษ กรุณาติดต่อผู้ดูแลก่อนเปลี่ยนแพ็กเกจ',409);
  if(item.current_period_end<=now()+7200)fail('ใกล้สิ้นสุดรอบแล้ว กรุณารอรอบใหม่ก่อนอัปเกรด เพื่อป้องกันยอดชำระซ้อนกับการต่ออายุ',409);
- const amount=amounts[plan].monthly-amounts[choice.plan].monthly;
- if(amount<=0)fail('เลือกแพ็กเกจที่สูงกว่าปัจจุบัน การลดแพ็กเกจยังไม่เปิดในขั้นตอนอัปเกรดนี้',409);
- const price=await validatedPrice(env,plan,'monthly');
- return {from:choice.plan,plan,period:'monthly',amount,next_amount:amounts[plan].monthly,period_end:item.current_period_end,cancel_at_period_end:!!sub.cancel_at_period_end,subscription_id:sub.id,item_id:item.id,target_price:price};
+ const policy=upgradePolicy(choice.period,prepaid?.applied_start||item.current_period_start,item.current_period_end,now());
+ const difference=amounts[plan][choice.period]-amounts[choice.plan][choice.period];
+ if(difference<=0)fail('เลือกแพ็กเกจที่สูงกว่าปัจจุบัน การลดแพ็กเกจยังไม่เปิดในขั้นตอนอัปเกรดนี้',409);
+ if(policy.pricing_mode==='full'&&sub.billing_mode?.type==='flexible')fail('รูปแบบรอบบิลนี้ต้องให้ผู้ดูแลตรวจสอบก่อนเริ่มรอบใหม่',409);
+ const amount=policy.pricing_mode==='difference'?difference:amounts[plan][choice.period];
+ const price=await validatedPrice(env,plan,choice.period);
+ return {...policy,from:choice.plan,plan,amount,next_amount:amounts[plan][choice.period],cancel_at_period_end:!!sub.cancel_at_period_end,subscription_id:sub.id,item_id:item.id,target_price:price};
 }
 export async function previewUpgrade(env,user,input){
  allowed(env,user);if(!await recoveryLimit(env,'billing:'+user.id,60))fail('กรุณารอ 15 นาทีแล้วลองใหม่',429);
@@ -146,30 +159,41 @@ export async function startUpgrade(env,user,input,origin){
  const quote=await upgradeQuote(env,row,input.plan);
  if(typeof input.keep_cancelled!=='boolean'||(!quote.cancel_at_period_end&&input.keep_cancelled))fail('ยืนยันเงื่อนไขการต่ออายุให้ถูกต้อง');
  // Reject a stale quote (e.g. another tab or a renewal); never substitute a new amount.
- if(input.from!==quote.from||input.amount!==quote.amount||input.period_end!==quote.period_end||input.expected_cancel!==quote.cancel_at_period_end)fail('ข้อมูลแพ็กเกจเปลี่ยนแล้ว กรุณาดูยอดใหม่ก่อนยืนยัน',409);
+ if(input.from!==quote.from||input.amount!==quote.amount||input.period_end!==quote.period_end||input.expected_cancel!==quote.cancel_at_period_end||input.pricing_mode!==quote.pricing_mode||input.period!==quote.period)fail('ข้อมูลแพ็กเกจเปลี่ยนแล้ว กรุณาดูยอดใหม่ก่อนยืนยัน',409);
  const id=crypto.randomUUID(),created=now();
- const params={mode:'payment',customer:row.customer_id,client_reference_id:user.id,'payment_method_types[0]':'card','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':String(quote.amount),'line_items[0][price_data][tax_behavior]':'inclusive','line_items[0][price_data][product_data][name]':`Lync to Mart — Upgrade ${quote.from} → ${quote.plan} (monthly)`,'line_items[0][quantity]':'1','line_items[0][tax_rates][0]':env.STRIPE_VAT_RATE_ID,'metadata[app]':'lync-to-mart','metadata[user_id]':user.id,'metadata[upgrade_id]':id,'payment_intent_data[metadata][upgrade_id]':id,'adaptive_pricing[enabled]':'false',expires_at:String(created+3600),success_url:origin+'/?billing=upgrade-success',cancel_url:origin+'/?billing=upgrade-cancel'};
- await q(env,'INSERT INTO billing_upgrades(id,user_id,subscription_id,item_id,from_plan,to_plan,target_price,amount,period_end,cancel_at_period_end,session_params,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',id,user.id,quote.subscription_id,quote.item_id,quote.from,quote.plan,quote.target_price,quote.amount,quote.period_end,input.keep_cancelled?1:0,JSON.stringify(params),created,created).run();
+ const params={mode:'payment',customer:row.customer_id,client_reference_id:user.id,'payment_method_types[0]':'card','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':String(quote.amount),'line_items[0][price_data][tax_behavior]':'inclusive','line_items[0][price_data][product_data][name]':`Lync to Mart — Upgrade ${quote.from} → ${quote.plan} (${quote.period}; ${quote.pricing_mode})`,'line_items[0][quantity]':'1','line_items[0][tax_rates][0]':env.STRIPE_VAT_RATE_ID,'metadata[app]':'lync-to-mart','metadata[user_id]':user.id,'metadata[upgrade_id]':id,'payment_intent_data[metadata][upgrade_id]':id,'adaptive_pricing[enabled]':'false',expires_at:String(created+3600),success_url:origin+'/?billing=upgrade-success',cancel_url:origin+'/?billing=upgrade-cancel'};
+ await q(env,'INSERT INTO billing_upgrades(id,user_id,subscription_id,item_id,from_plan,to_plan,target_price,amount,period_end,cancel_at_period_end,session_params,created_at,updated_at,period,pricing_mode,period_start,discount_deadline) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,user.id,quote.subscription_id,quote.item_id,quote.from,quote.plan,quote.target_price,quote.amount,quote.period_end,input.keep_cancelled?1:0,JSON.stringify(params),created,created,quote.period,quote.pricing_mode,quote.period_start,quote.discount_deadline).run();
  u=await pendingUpgrade(env,user.id);const session=await upgradeSession(env,u);return {url:safeStripeURL(session.url,'checkout.stripe.com')};
  });
 }
 async function settleUpgrade(env,row){
- const u=await pendingUpgrade(env,row.user_id);if(!u||u.status==='review')return;
+ let u=await pendingUpgrade(env,row.user_id);if(!u||u.status==='review')return;
  const session=await upgradeSession(env,u);
+ if(!u.period_start&&session.status==='open'){await stripe(env,'checkout/sessions/'+session.id+'/expire',{});await q(env,"UPDATE billing_upgrades SET status='expired',updated_at=? WHERE id=?",now(),u.id).run();return;}
  if(session.status==='expired'){await q(env,"UPDATE billing_upgrades SET status='expired',updated_at=? WHERE id=?",now(),u.id).run();return;}
  if(session.status!=='complete'||session.payment_status!=='paid')return;
  const review=async()=>{await q(env,"UPDATE billing_upgrades SET status='review',updated_at=? WHERE id=?",now(),u.id).run();};
  if(session.livemode!==false||session.mode!=='payment'||session.customer!==row.customer_id||session.client_reference_id!==row.user_id||session.metadata?.upgrade_id!==u.id||session.metadata?.user_id!==row.user_id||session.metadata?.app!=='lync-to-mart'||session.currency!=='thb'||session.amount_total!==u.amount){await review();return;}
  const sub=await upgradeSubscription(env,{...row,subscription_id:u.subscription_id}),choice=upgradeChoice(env,sub),item=sub.items?.data?.[0];
  // Detect an update whose response was lost, including after the next renewal.
- if(sub.metadata?.mart_upgrade_id===u.id&&choice?.plan===u.to_plan&&choice.period==='monthly'){
+ if(sub.metadata?.mart_upgrade_id===u.id&&choice?.plan===u.to_plan&&choice.period===u.period){
+  if(u.pricing_mode==='full'&&sub.trial_end!==u.applied_end){await review();return;}
   await q(env,"UPDATE billing_upgrades SET status='applied',updated_at=? WHERE id=?",now(),u.id).run();return;
  }
- if(sub.status!=='active'||choice?.plan!==u.from_plan||choice.period!=='monthly'||item.id!==u.item_id||item.current_period_end!==u.period_end||u.period_end<=now()||sub.schedule||sub.pending_update||sub.latest_invoice?.status!=='paid'){
+ if((sub.status!=='active'&&!await prepaidCycle(env,sub))||choice?.plan!==u.from_plan||choice.period!==u.period||item.id!==u.item_id||item.current_period_end!==u.period_end||u.period_end<=now()||sub.schedule||sub.pending_update||sub.latest_invoice?.status!=='paid'){
   // Never charge again or silently apply an old payment to a different billing cycle.
   await review();return;
  }
- await stripe(env,'subscriptions/'+u.subscription_id,{'items[0][id]':u.item_id,'items[0][price]':u.target_price,'items[0][quantity]':'1',proration_behavior:'none',cancel_at_period_end:String(!!u.cancel_at_period_end),'metadata[mart_upgrade_id]':u.id},'mart-upgrade-apply-'+u.id);
+ const update={'items[0][id]':u.item_id,'items[0][price]':u.target_price,'items[0][quantity]':'1',proration_behavior:'none',cancel_at_period_end:String(!!u.cancel_at_period_end),'metadata[mart_upgrade_id]':u.id};
+ if(u.pricing_mode==='full'){
+  // Fix the new period before the network request; retries use exactly the same end.
+  if(!u.applied_start){const start=now(),end=addBillingMonths(start,u.period==='yearly'?12:1);await q(env,'UPDATE billing_upgrades SET applied_start=?,applied_end=? WHERE id=?',start,end,u.id).run();u=await pendingUpgrade(env,row.user_id);}
+  if(u.applied_end<=now()){await review();return;}
+  update.trial_end=String(u.applied_end);
+  // No billing_cycle_anchor=now: that would bill a second full invoice after Checkout.
+  update['metadata[mart_prepaid_upgrade]']=u.id;
+ }
+ await stripe(env,'subscriptions/'+u.subscription_id,update,'mart-upgrade-apply-'+u.id);
  await q(env,"UPDATE billing_upgrades SET status='applied',updated_at=? WHERE id=?",now(),u.id).run();
 }
 export async function abandonUpgrade(env,user){
