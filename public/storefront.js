@@ -10,6 +10,7 @@ async function navigate(target,{historyMode='push',focusSearch=false,scroll=fals
   if(!next)throw new Error('เปิดรายการไม่สำเร็จ กรุณารีเฟรชหน้าและเข้าสู่ระบบอีกครั้ง');
   if(request!==sequence)return;
   root.replaceWith(next);
+  connectRails();
   for(const selector of ['link[rel="canonical"]','meta[name="robots"]','meta[property="og:url"]','script[type="application/ld+json"]']){const old=document.querySelector(selector),fresh=doc.querySelector(selector);if(old&&fresh)old.replaceWith(fresh);}
   if(historyMode==='push')history.pushState(null,'',target);
   if(focusSearch){const field=next.querySelector('#catalog-search');field.focus({preventScroll:true});try{field.setSelectionRange(selection,selection);}catch{}}
@@ -25,4 +26,26 @@ document.addEventListener('change',event=>{if(['catalog-category','catalog-sort'
 document.addEventListener('toggle',event=>{if(!event.target.matches('.product-card details'))return;const card=event.target.closest('.product-card');card.classList.toggle('expanded',!!card.querySelector('details[open]'));},true);
 window.addEventListener('popstate',()=>navigate(location.href,{historyMode:'none',scroll:true}));
 
-document.addEventListener('click',event=>{const button=event.target.closest('[data-rail]');if(!button)return;const rail=document.getElementById(button.dataset.rail);rail?.scrollBy({left:Number(button.dataset.direction)*rail.clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-rail]');if(!button||button.disabled)return;const rail=document.getElementById(button.dataset.rail);rail?.scrollBy({left:Number(button.dataset.direction)*rail.clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});});
+
+// Reconnect after catalog navigation; a single observer releases removed rails.
+const railObserver=typeof ResizeObserver==='function'?new ResizeObserver(updateRailButtons):null;
+function updateRailButtons(){
+ for(const button of document.querySelectorAll('[data-rail]')){
+  const rail=document.getElementById(button.dataset.rail);
+  button.disabled=!rail||(Number(button.dataset.direction)<0?rail.scrollLeft<=1:rail.scrollLeft>=rail.scrollWidth-rail.clientWidth-1);
+ }
+}
+function connectRails(){
+ railObserver?.disconnect();
+ const ids=new Set([...document.querySelectorAll('[data-rail]')].map(button=>button.dataset.rail));
+ for(const id of ids){const rail=document.getElementById(id);if(rail)railObserver?.observe(rail);}
+ updateRailButtons();
+}
+let railFrame;
+document.addEventListener('scroll',event=>{
+ if(!event.target.matches?.('.showcase-rail'))return;
+ cancelAnimationFrame(railFrame);railFrame=requestAnimationFrame(updateRailButtons);
+},true);
+window.addEventListener('resize',updateRailButtons);
+connectRails();

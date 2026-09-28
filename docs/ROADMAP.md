@@ -311,3 +311,9 @@ Future implementation must enforce quotas server-side using effective account pl
 ### Product trash count badge (2026-09-27)
 - Product-list trash button displays a small count badge for the selected shop; zero hides the badge.
 - Owner-scoped count-only endpoint avoids downloading trash snapshots. Detached button guard prevents late responses from updating another shop; normal list reloads refresh after deletion/restoration.
+
+### 2026-09-28 — Storefront rail usability QA
+- Observed on staging: featured arrows remained active when all cards fit; newest left arrow remained active at the start.
+- Disable directions at scroll boundaries, update on native touch/mouse scrolling and resize, and reconnect a single ResizeObserver after catalog navigation.
+- No new dependencies, polling, database changes or seller content changes.
+- Validation: syntax check and 62 tests, including overflow/edge/replacement regression coverage. Public browser pagination and empty-search recovery checked; physical mobile/tablet QA remains pending.
