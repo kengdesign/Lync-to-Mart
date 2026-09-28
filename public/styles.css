@@ -202,3 +202,8 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 /* Billing status controls: separate refresh from checkout on every screen. */
 #billing-panel .billing-status-actions{margin-top:16px;gap:12px;flex-wrap:wrap}
 #billing-panel .billing-refresh-help{margin:10px 0 20px;font-size:13px;line-height:1.7}
+
+/* Make paid plan actions clearly visible on desktop and touch screens. */
+.plans .plan button[data-select-billing]{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;margin:12px 0 8px;padding:12px 16px;border:2px solid #E32321;border-radius:12px;background:#E32321;color:#fff;font-size:15px;font-weight:700;line-height:1.5;text-align:center;white-space:normal;cursor:pointer;box-shadow:0 3px 8px #e3232126}
+.plans .plan button[data-select-billing]:focus-visible{outline:3px solid #192329;outline-offset:4px}
+@media(hover:hover){.plans .plan button[data-select-billing]:hover{background:#c51c1a;border-color:#c51c1a;filter:none}}
