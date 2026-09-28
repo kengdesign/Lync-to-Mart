@@ -16,6 +16,7 @@ export function database(path=':memory:'){
  if(!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='admin_swaps'").get())db.exec(readFileSync(new URL('../migrations/0013_admin_swap.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../migrations/0014_registration.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../migrations/0015_admin_audit_index.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('../migrations/0016_member_controls.sql',import.meta.url),'utf8'));
  const wrap=(sql,args=[])=>({bind(...values){return wrap(sql,values);},async first(){return db.prepare(sql).get(...args)||null;},async all(){return {results:db.prepare(sql).all(...args)};},async run(){const r=db.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}});
  return {prepare:sql=>wrap(sql),async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results;}catch(err){db.exec('ROLLBACK');throw err;}},close(){db.close();}};
 }

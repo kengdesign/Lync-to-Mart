@@ -372,3 +372,14 @@ Future implementation must enforce quotas server-side using effective account pl
 - แสดงเฉพาะ start/explicit stop ที่มีบันทึกจริง ไม่อ้างว่า tab close/session expiry เป็น explicit logout.
 - เพิ่มดัชนีเรียงประวัติตามเวลาและ ID; ตรวจ XSS escaping ใน DOM smoke.
 - 69 tests passed; live owner UI acceptance pending.
+
+
+## 28 กันยายน 2026 — Member administration and promotions
+- Owner manages members; Admin/Support retain read-only access. Added role, base-plan/Billing and status filters.
+- Owner can pre-create any email without a known password; invited account receives activation only when email holder requests signup link. Explicit Owner invitations permit that email to activate in Staging even outside the general testing allowlist.
+- Promotional overrides support Free/Starter/Growth/Brand, immediate start, finite expiry or indefinite duration; edit expiry to extend/shorten; remove override to return to base plan. users.plan_id remains unchanged. Existing staging trial remains a separate fallback.
+- Explicit grant wins over staging trial until expiry. Public storefront plan resolution uses the same expression.
+- Suspend/ban/soft-delete revoke sessions and swaps, block login, public storefront, checkout redirects, public media and sitemap. Restore re-enables visibility according to previously saved publication settings. No hard deletion, files and records retained.
+- Status changes require exact target email and reason. Self/Owner status changes forbidden to prevent lockout. Every create/plan/status change is audited. Billing is not charged/cancelled by these actions; Stripe is not yet integrated.
+- Admin audit tab renamed to cover member actions. All verification and signup preserve previously granted promotion.
+- 70 automated tests passed; UI DOM smoke validated filters, promotion preset, confirmation, add and cancel. Actual browser/device acceptance remains to be tested by owner.

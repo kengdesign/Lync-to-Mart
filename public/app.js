@@ -102,6 +102,6 @@ function recovery(){
  if(reset&&!token){status.textContent='ลิงก์ไม่ครบถ้วน กรุณาเปิดจากอีเมลอีกครั้งหรือขอลิงก์ใหม่';button.disabled=true;return;}
  form.onsubmit=async ev=>{ev.preventDefault();if(busy)return;busy=true;button.disabled=true;status.textContent='กำลังดำเนินการ…';try{const data=Object.fromEntries(new FormData(form));if(reset)data.token=token;const result=await send(reset?'/reset-password':'/forgot-password',data);form.reset();if(reset){history.replaceState(null,'','/');state.tab='overview';login('ตั้งรหัสผ่านใหม่สำเร็จแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่');$('#email').focus();return;}status.textContent=result.message;}catch(err){status.textContent=err.message;button.disabled=false;}finally{busy=false;}};
 }
-if(['/register','/verify-email'].includes(location.pathname))mountRegistration({app,brand,send,onComplete(){history.replaceState(null,'','/dashboard');login('ยืนยันอีเมลและสร้างบัญชี Free สำเร็จแล้ว เข้าสู่ระบบเพื่อสร้างร้านแรกของคุณ');}});else if(['/forgot-password','/reset-password'].includes(location.pathname))recovery();else load();
+if(['/register','/verify-email'].includes(location.pathname))mountRegistration({app,brand,send,onComplete(){history.replaceState(null,'','/dashboard');login('ยืนยันอีเมลและเปิดบัญชีสำเร็จแล้ว เข้าสู่ระบบเพื่อสร้างร้านแรกของคุณ');}});else if(['/forgot-password','/reset-password'].includes(location.pathname))recovery();else load();
 
 async function returnAdmin(){if(!leaveStore())return;try{await send('/admin/swap/stop',{});location.assign('/sh0rt-log1ng/');}catch(error){toast(error.message);}}

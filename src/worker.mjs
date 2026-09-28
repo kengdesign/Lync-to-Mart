@@ -1,3 +1,4 @@
+import {assertActive,manageMember,activeMemberSQL} from './member-controls.mjs';
 import {requestRegistration,completeRegistration} from './registration.mjs';
 import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
 import {adminData} from './admin.mjs';
@@ -24,7 +25,7 @@ const clean=(x,max)=>typeof x==='string'?x.trim().slice(0,max):'';
 const now=()=>Math.floor(Date.now()/1000);
 const query=(env,sql,...args)=>env.DB.prepare(sql).bind(...args);
 async function body(req){if(Number(req.headers.get('content-length'))>200000)fail('ข้อมูลยาวเกินไป',413);const text=await boundedHTML(req,200000);if(text.length>200000)fail('ข้อมูลยาวเกินไป',413);try{return JSON.parse(text);}catch{fail('รูปแบบข้อมูลไม่ถูกต้อง');}}
-async function realOwner(req,env){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(!token)fail('กรุณาเข้าสู่ระบบ',401);const u=await query(env,'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?',await hash(token),now()).first();if(!u)fail('กรุณาเข้าสู่ระบบอีกครั้ง',401);return u;}
+async function realOwner(req,env){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(!token)fail('กรุณาเข้าสู่ระบบ',401);const u=await query(env,'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?',await hash(token),now()).first();if(!u)fail('กรุณาเข้าสู่ระบบอีกครั้ง',401);await assertActive(env,u.id);return u;}
 async function owner(req,env){return swapUser(req,env,await realOwner(req,env));}
 async function shopFor(env,id,user){const s=await query(env,'SELECT * FROM shops WHERE id=? AND owner_id=?',id,user.id).first();if(!s)fail('ไม่พบร้านค้า',404);return s;}
 const planFor=effectivePlan;
@@ -40,6 +41,7 @@ async function handle(req,env,ctx){
  if(cookieValue(req,'mart_swap')&&['POST','PUT','DELETE'].includes(method)&&p!=='/api/logout')fail('กำลังเข้าดูแทนร้านค้าแบบอ่านอย่างเดียว กรุณากลับบัญชีแอดมินก่อนทำรายการ',403);
  if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await realOwner(req,env),url));
  if((p==='/sh0rt-log1ng/'||p==='/sh0rt-log1ng')&&method==='GET')return env.ASSETS.fetch(new Request(new URL('/admin.html',url),req));
+ if(p==='/api/admin/members'&&method==='POST')return json(await manageMember(env,await realOwner(req,env),await body(req)));
  if(p==='/api/register/request'&&method==='POST')return json(await requestRegistration(req,env,await body(req)));
  if(p==='/api/register/complete'&&method==='POST')return json(await completeRegistration(req,env,await body(req)));
  const discovered=await discovery(req,env);if(discovered)return discovered;
@@ -53,7 +55,7 @@ async function handle(req,env,ctx){
   const a=await query(env,'SELECT count FROM login_attempts WHERE key=?',key).first();if(a.count>10)fail('ลองเข้าสู่ระบบใหม่ในอีก 15 นาที',429);
   const user=await query(env,'SELECT * FROM users WHERE email=?',email).first();
   const valid=await verifyPassword(password,user?.password||'00000000000000000000000000000000:0000000000000000000000000000000000000000000000000000000000000000');
-  if(!user||!valid)fail('อีเมลหรือรหัสผ่านไม่ถูกต้อง',401);
+  if(!user||!valid)fail('อีเมลหรือรหัสผ่านไม่ถูกต้อง',401);await assertActive(env,user.id);
   const token=crypto.randomUUID()+crypto.randomUUID();const loginResult=await env.DB.batch([query(env,'DELETE FROM sessions WHERE expires<?',now()),query(env,'INSERT INTO sessions(token_hash,user_id,expires) SELECT ?,id,? FROM users WHERE id=? AND password=?',await hash(token),now()+86400,user.id,user.password)]);if(loginResult[1].meta.changes!==1)fail('ข้อมูลบัญชีเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่',401);
   return json({ok:true},200,{'Set-Cookie':`mart_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${url.protocol==='https:'?'; Secure':''}`});
  }
@@ -66,23 +68,23 @@ async function handle(req,env,ctx){
   return html(storefront({...shop,branding:plan.branding,plan_id:plan.id},products,url.origin,true,true,url.searchParams));
  }
  if(p.startsWith('/shop/')&&method==='GET'){
-  const slug=decodeURIComponent(p.slice(6));const s=await query(env,`SELECT s.*,pl.branding,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.slug=? AND s.published=1`,...planBindings(env),slug).first();
+  const slug=decodeURIComponent(p.slice(6));const s=await query(env,`SELECT s.*,pl.branding,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.slug=? AND s.published=1 AND ${activeMemberSQL}`,...planBindings(env),slug).first();
   if(!s)return html(page('ไม่พบร้าน','<main class="missing"><h1>ร้านนี้ยังไม่เปิดให้เข้าชม</h1><p>ตรวจสอบลิงก์หรือติดต่อเจ้าของร้าน</p></main>'),404);
   const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY featured DESC,created_at DESC,id DESC",s.id).all();
   ctx.waitUntil(event(env,s.id,null,'view').catch(()=>{}));
   return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams));
  }
  if(p.startsWith('/go/')&&method==='GET'){
-  const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
+  const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1 AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active')",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
   const target=safeURL(product.checkout_url||product.source_url,hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
   ctx.waitUntil(event(env,product.shop_id,product.id,'buy_click').catch(()=>{}));return new Response(null,{status:302,headers:{Location:target,'Cache-Control':'no-store','Referrer-Policy':'strict-origin-when-cross-origin'}});
  }
  if(p.startsWith('/media/')&&['GET','HEAD'].includes(method)){
-  const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 LIMIT 1",key,key,'src="/media/'+encodeURIComponent(key)+'"').first();
-  const publicBrand=await query(env,'SELECT id FROM shops WHERE published=1 AND (logo_key=? OR cover_key=?) LIMIT 1',key,key).first();
+  const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active') LIMIT 1",key,key,'src="/media/'+encodeURIComponent(key)+'"').first();
+  const publicBrand=await query(env,"SELECT s.id FROM shops s WHERE published=1 AND (logo_key=? OR cover_key=?) AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active') LIMIT 1",key,key).first();
   let publicCampaign=false;
   if(!publicImage&&!publicBrand){
-   const candidates=(await query(env,`SELECT s.showcase_json,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.published=1 AND EXISTS(SELECT 1 FROM json_each(s.showcase_json,'$.campaigns') c WHERE json_extract(c.value,'$.key')=? OR json_extract(c.value,'$.mobile')=?)`,...planBindings(env),key,key).all()).results;
+   const candidates=(await query(env,`SELECT s.showcase_json,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.published=1 AND ${activeMemberSQL} AND EXISTS(SELECT 1 FROM json_each(s.showcase_json,'$.campaigns') c WHERE json_extract(c.value,'$.key')=? OR json_extract(c.value,'$.mobile')=?)`,...planBindings(env),key,key).all()).results;
    publicCampaign=candidates.some(s=>{const limit=showcaseLimits(s.plan_id),data=readShowcase(s.showcase_json);return (data.campaigns||[]).slice(0,limit.images).some(c=>c.enabled&&(c.key===key||(limit.mobile&&c.mobile===key)));});
   }
   if(!publicImage&&!publicBrand&&!publicCampaign){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first())fail('ไม่พบรูปภาพ',404);}

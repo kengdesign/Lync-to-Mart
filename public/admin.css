@@ -3,3 +3,5 @@
 .swap-dialog{width:min(560px,calc(100% - 32px));border:0;border-radius:18px;padding:28px}.swap-dialog::backdrop{background:#15202b80}.swap-dialog textarea{display:block;width:100%;min-height:100px;margin-top:8px}.swap-dialog p{line-height:1.7}
 
 .audit-reason{display:block;min-width:180px;max-width:350px;white-space:pre-wrap;overflow-wrap:anywhere}
+
+#member-tools{margin-top:20px}#member-tools select{min-width:150px}.swap-dialog label{display:block;margin-top:16px}.swap-dialog select,.swap-dialog input{width:100%;margin-top:6px}
