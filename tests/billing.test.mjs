@@ -42,7 +42,7 @@ test('Checkout is sandbox-only, validates price/tax, ignores client amount and r
  await assert.rejects(checkout(env,{...user,email:'other@example.test'},{plan:'starter',period:'monthly'},'https://mart.test'),e=>e.status===403);
  await assert.rejects(checkout(env,user,{plan:'owner',period:'monthly'},'https://mart.test'),e=>e.status===400);
  f.setTax({inclusive:false});await assert.rejects(checkout(env,user,{plan:'starter',period:'monthly'},'https://mart.test'),e=>e.status===503);f.setTax({inclusive:true});
- f.setPrice({unit_amount:1});await assert.rejects(checkout(env,user,{plan:'starter',period:'monthly'},'https://mart.test'),e=>e.status===503);f.setPrice({});
+ f.setPrice({unit_amount:1});await assert.rejects(checkout(env,user,{plan:'starter',period:'monthly'},'https://mart.test'),e=>e.status===503);f.setPrice({tax_behavior:'unspecified',unit_amount:19900});await assert.rejects(checkout(env,user,{plan:'starter',period:'monthly'},'https://mart.test'),e=>e.status===503&&e.message.includes('Include tax in price'));f.setPrice({});
  const input={plan:'starter',period:'monthly',amount:1,price:'price_fake'};await checkout(env,user,input,'https://mart.test');await checkout(env,user,input,'https://mart.test');
  assert.equal(f.calls.filter(c=>c.path==='checkout/sessions').length,1);
  const params=f.calls.find(c=>c.path==='checkout/sessions').values;assert.equal(params['line_items[0][price]'],'price_starter_monthly');assert.equal(params['subscription_data[default_tax_rates][0]'],'txr_vat');assert.equal(params.payment_method_types,undefined);assert.equal(params.success_url,'https://mart.test/?billing=success');assert.equal((await DB.prepare('SELECT plan_id FROM users').first()).plan_id,'free');

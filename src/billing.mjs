@@ -26,7 +26,18 @@ async function locked(env,id,fn){
 function selection(env,price){for(const plan of Object.keys(amounts))for(const period of ['monthly','yearly'])if(env[priceKey(plan,period)]===price?.id&&price.currency==='thb'&&price.unit_amount===amounts[plan][period]&&price.recurring?.interval===(period==='monthly'?'month':'year')&&price.recurring.interval_count===1&&price.tax_behavior==='inclusive'&&price.livemode===false)return {plan,period};return null;}
 async function validatedPrice(env,plan,period){
  const [price,tax]=await Promise.all([stripe(env,'prices/'+env[priceKey(plan,period)]),stripe(env,'tax_rates/'+env.STRIPE_VAT_RATE_ID)]);
- if(!price.active||!selection(env,price)||!tax.active||tax.livemode!==false||tax.percentage!==7||tax.inclusive!==true)fail('ราคา/รอบชำระ/VAT ใน Stripe ไม่ตรงกับแพ็กเกจ Mart',503);return price.id;
+ const problems=[];
+ if(!price.active)problems.push('Price ถูกปิดใช้งาน');
+ if(price.id!==env[priceKey(plan,period)])problems.push('Price ID ไม่ตรง');
+ if(price.livemode!==false||tax.livemode!==false)problems.push('ต้องใช้ข้อมูล Sandbox');
+ if(price.currency!=='thb')problems.push('สกุลเงินต้องเป็น THB');
+ if(price.unit_amount!==amounts[plan][period])problems.push(`ราคาต้องเป็น ฿${amounts[plan][period]/100} แต่ Stripe เป็น ฿${Number(price.unit_amount)/100}`);
+ if(price.recurring?.interval!==(period==='monthly'?'month':'year')||price.recurring?.interval_count!==1)problems.push(`รอบราคาต้องเป็นทุก 1 ${period==='monthly'?'เดือน':'ปี'}`);
+ if(price.tax_behavior!=='inclusive')problems.push(`Price ยังไม่ได้ตั้งรวมภาษี (tax_behavior=${price.tax_behavior||'unspecified'}) ให้ตั้ง Include tax in price เป็น Yes`);
+ if(!tax.active)problems.push('Tax rate ถูกปิดใช้งาน');
+ if(tax.percentage!==7)problems.push('Tax rate ต้องเป็น 7%');
+ if(tax.inclusive!==true)problems.push('Tax rate ต้องเป็นแบบรวมภาษี (inclusive)');
+ if(problems.length)fail(`ตั้งค่า ${plan} ${period==='monthly'?'รายเดือน':'รายปี'} ไม่ตรง: ${problems.join(' · ')}`,503);return price.id;
 }
 // Always read current Stripe state, never trust event order or browser redirects.
 async function reconcile(env,row){
