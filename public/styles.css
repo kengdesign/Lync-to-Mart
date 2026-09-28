@@ -198,3 +198,7 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 @media(max-width:600px){#catalog-region>.section-heading{padding-top:16px;margin-bottom:20px}}
 
 .swap-banner{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px;margin-bottom:20px;border:2px solid #E32321;border-radius:14px;background:#fff3f2;color:#5a1918}.swap-banner p{margin:6px 0 0;font-size:14px}.swap-banner button{flex-shrink:0}@media(max-width:650px){.swap-banner{flex-direction:column;align-items:flex-start}}
+
+/* Billing status controls: separate refresh from checkout on every screen. */
+#billing-panel .billing-status-actions{margin-top:16px;gap:12px;flex-wrap:wrap}
+#billing-panel .billing-refresh-help{margin:10px 0 20px;font-size:13px;line-height:1.7}

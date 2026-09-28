@@ -1,4 +1,4 @@
-import {mountBilling} from './billing.js?v=2';
+import {mountBilling} from './billing.js?v=3';
 import {mountRegistration} from './registration.js';
 import {mountShowcaseEditor} from './showcase-editor.js?v=1';
 import {mountSellerHelp} from './seller-help.js?v=3';
