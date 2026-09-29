@@ -442,3 +442,10 @@ Future implementation must enforce quotas server-side using effective account pl
 - Durable pending/review/applied operations, idempotent recovery, abandon/expire flow, existing webhook reconciliation. Preserves price, term and cancellation choice; blocks overlapping plan schedules/updates.
 - Card numbers/CVC never handled by Mart. Additional restricted-key read permissions may be required; manual Sandbox acceptance remains required.
 - Owner billing view flags unresolved card changes. Migration 0021 additive; no new secrets/webhook events.
+
+
+### Merchant overview billing notices — 2026-09-29
+- Compact contextual notice above store overview: review, failed/unconfirmed payment, pending upgrade/card change, scheduled downgrade and renewal-off expiry within seven days. Normal/Free accounts show no extra panel.
+- Uses cached billing status with last-updated timestamp; no Stripe request or mutation from overview, no emails/polling. Manage action opens existing plan tab.
+- Impersonation skips billing request; detached async results ignored; loading failure doesn't break dashboard. Expired records ask for verification rather than promising an entitlement; old canceled accounts stop showing expiry after seven days.
+- Five targeted tests cover boundary, priority, role/privacy, escaping and load failure.
