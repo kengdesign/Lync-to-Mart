@@ -1,10 +1,20 @@
-export function productPage(products,{search='',status='all',category=undefined,page=1,size=20,sort='default'}={}){
+export function productGaps(product){
+ const gaps=[];
+ if(!String(product.image_key||'').trim())gaps.push('image');
+ if(!String(product.description||'').trim())gaps.push('description');
+ if(!String(product.category||'').trim())gaps.push('category');
+ return gaps;
+}
+export function productPage(products,{search='',status='all',category=undefined,page=1,size=20,sort='default',quality='all'}={}){
  size=[20,50,100].includes(Number(size))?Number(size):20;
  const normalize=value=>String(value??'').normalize('NFC').toLocaleLowerCase('th-TH');
  const needle=normalize(search.trim());
  const filtered=products.filter(p=>{
   if(status!=='all'&&p.status!==status)return false;
   if(category!==undefined&&String(p.category||'').trim()!==(category===null?'':category))return false;
+  const gaps=productGaps(p);
+  if(quality==='incomplete'&&!gaps.length)return false;
+  if(['image','description','category'].includes(quality)&&!gaps.includes(quality))return false;
   if(!needle)return true;
   const values=[p.name,p.description,p.category,...(p.variants||[]).flatMap(v=>[v.sku,...(v.attributes||[]).flatMap(a=>[a.key,a.value])])];
   return values.some(value=>normalize(value).includes(needle));
