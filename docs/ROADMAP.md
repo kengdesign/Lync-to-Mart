@@ -449,3 +449,10 @@ Future implementation must enforce quotas server-side using effective account pl
 - Uses cached billing status with last-updated timestamp; no Stripe request or mutation from overview, no emails/polling. Manage action opens existing plan tab.
 - Impersonation skips billing request; detached async results ignored; loading failure doesn't break dashboard. Expired records ask for verification rather than promising an entitlement; old canceled accounts stop showing expiry after seven days.
 - Five targeted tests cover boundary, priority, role/privacy, escaping and load failure.
+
+
+### Backup/restore preparation — 2026-09-29
+- Added offline SQL/R2-copy verifier: isolated temporary SQLite restore, integrity/FK/schema checks, per-table counts, media existence/size/SHA-256 and optional comparison with prior manifest. No remote calls or overwrite option.
+- Automated drill uses synthetic data and deliberately tests missing media, same-size corruption, broken foreign keys and forbidden SQL ATTACH; source database remains intact. CI provisions Python explicitly.
+- Thai runbook scopes exports to Mart Staging, explains non-atomic D1/R2 capture, private backup handling, isolated cloud drill and Stripe reconciliation before any live restore.
+- NOT completed: actual Cloudflare snapshot/export, remote restore drill, scheduled backups, measured RPO/RTO. No Cloudflare management credentials available in this session.
