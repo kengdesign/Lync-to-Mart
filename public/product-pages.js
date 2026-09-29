@@ -1,4 +1,4 @@
-export function productPage(products,{search='',status='all',category=undefined,page=1,size=20}={}){
+export function productPage(products,{search='',status='all',category=undefined,page=1,size=20,sort='default'}={}){
  size=[20,50,100].includes(Number(size))?Number(size):20;
  const normalize=value=>String(value??'').normalize('NFC').toLocaleLowerCase('th-TH');
  const needle=normalize(search.trim());
@@ -9,6 +9,13 @@ export function productPage(products,{search='',status='all',category=undefined,
   const values=[p.name,p.description,p.category,...(p.variants||[]).flatMap(v=>[v.sku,...(v.attributes||[]).flatMap(a=>[a.key,a.value])])];
   return values.some(value=>normalize(value).includes(needle));
  });
+ const compare={
+  name:(a,b)=>String(a.name||'').localeCompare(String(b.name||''),'th'),
+  price_low:(a,b)=>(a.price??0)-(b.price??0),
+  price_high:(a,b)=>(b.price??0)-(a.price??0),
+  featured:(a,b)=>Number(!!b.featured)-Number(!!a.featured)
+ }[sort];
+ if(compare)filtered.sort(compare);
  const total=filtered.length,pages=Math.max(1,Math.ceil(total/size));page=Math.min(pages,Math.max(1,Math.trunc(Number(page))||1));
  const start=(page-1)*size;
  return {matches:filtered,items:filtered.slice(start,start+size),page,pages,size,total,start:total?start+1:0,end:Math.min(start+size,total)};
