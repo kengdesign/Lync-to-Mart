@@ -1,3 +1,4 @@
+import {renderAdminBilling} from './admin-billing.js?v=1';
 const roleLabels={owner:'แอดมินสูงสุด (Owner)',admin:'ผู้ดูแลระบบ (Admin)',support:'เจ้าหน้าที่ช่วยเหลือ (Support)',member:'สมาชิก / ร้านค้า'};
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let view='overview',page=1,sequence=0,controller;
@@ -5,23 +6,24 @@ const size=n=>new Intl.NumberFormat('th-TH',{maximumFractionDigits:1}).format(n/
 async function load(){
  const request=++sequence;controller?.abort();controller=new AbortController();$('#admin-status').textContent='กำลังโหลดข้อมูล…';
  try{
- const response=await fetch('/api/admin?'+new URLSearchParams({view,page,q:$('#admin-query').value,role:$('#filter-role').value,plan:$('#filter-plan').value,status:$('#filter-status').value}),{signal:controller.signal});const data=await response.json();if(request!==sequence)return;
+ const response=await fetch('/api/admin?'+new URLSearchParams({view,page,q:$('#admin-query').value,role:$('#filter-role').value,plan:$('#filter-plan').value,status:$('#filter-status').value,billing_filter:$('#billing-filter').value}),{signal:controller.signal});const data=await response.json();if(request!==sequence)return;
  if(!response.ok){$('#admin-content').hidden=true;$('#admin-login').hidden=response.status!==401;throw Error(data.error||'โหลดข้อมูลไม่สำเร็จ');}
+ $('#billing-tools').hidden=view!=='billing';$('[data-view="billing"]').hidden=data.role!=='owner';
  $('#member-tools').hidden=view!=='users';$('#add-member').hidden=data.role!=='owner';
  $('#admin-content').hidden=false;$('#admin-login').hidden=true;$('#admin-status').textContent='สิทธิ์: '+(roleLabels[data.role]||data.role)+' · ข้อมูลสำหรับผู้ดูแลระบบ';$('#admin-search').hidden=view==='overview';
  $('[data-view="audit"]').hidden=data.role!=='owner';
- $('label[for="admin-query"]').textContent=view==='audit'?'ค้นหาอีเมลผู้ดูแล อีเมลสมาชิก ชื่อร้าน หรือเหตุผล':'ค้นหาอีเมล ชื่อร้าน หรือชื่อในลิงก์';
+ $('label[for="admin-query"]').textContent=view==='billing'?'ค้นหาอีเมลสมาชิก':view==='audit'?'ค้นหาอีเมลผู้ดูแล อีเมลสมาชิก ชื่อร้าน หรือเหตุผล':'ค้นหาอีเมล ชื่อร้าน หรือชื่อในลิงก์';
  document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.view===view)));
  if(view==='overview'){
- const s=data.stats;$('#admin-results').innerHTML='<div class="admin-stats">'+[['สมาชิก',s.users],['ร้านค้าทั้งหมด',s.shops],['ร้านค้าที่เผยแพร่',s.published_shops],['สินค้าทั้งหมด',s.products],['สินค้าที่เผยแพร่',s.published_products],['พื้นที่ไฟล์',size(s.storage_bytes)]].map(([label,value])=>`<article class="admin-stat">${esc(label)}<strong>${esc(value)}</strong></article>`).join('')+'</div><p>ระบบ: '+esc(data.environment)+' · การชำระเงิน Stripe ยังไม่เปิดใช้</p><p>หน้านี้แสดงข้อมูลเพื่อตรวจสอบ การจัดการสิทธิ์และแพ็กเกจจะเพิ่มในขั้นถัดไป</p>';$('#admin-pages').replaceChildren();return;
+ const s=data.stats;$('#admin-results').innerHTML='<div class="admin-stats">'+[['สมาชิก',s.users],['ร้านค้าทั้งหมด',s.shops],['ร้านค้าที่เผยแพร่',s.published_shops],['สินค้าทั้งหมด',s.products],['สินค้าที่เผยแพร่',s.published_products],['พื้นที่ไฟล์',size(s.storage_bytes)]].map(([label,value])=>`<article class="admin-stat">${esc(label)}<strong>${esc(value)}</strong></article>`).join('')+'</div><p>ระบบ: '+esc(data.environment)+' · '+(data.billing_connected?'ตั้งค่าชำระเงินทดสอบ Stripe แล้ว':'ยังไม่เปิดระบบชำระเงิน')+'</p><p>จัดการสมาชิกและสิทธิ์โปรโมชั่นได้จากเมนูสมาชิก</p>';$('#admin-pages').replaceChildren();return;
  }
+ if(view==='billing'){renderAdminBilling({root:$('#admin-results'),data});renderPages(data);return;}
  const headings=view==='audit'?['เวลา (ประเทศไทย)','ผู้ดูแล','ร้านค้า / บัญชี','รายการ','เหตุผล']:view==='users'?['อีเมล / Role','สถานะ','แพ็กเกจฐาน','สิทธิ์ที่ใช้ได้','จำนวนร้าน',...(data.role==='owner'?['จัดการ']:[])]:['ร้านค้า','อีเมลเจ้าของ','สถานะ','สินค้า',...(data.role==='owner'?['เข้าดูหลังบ้าน']:[])];
  $('#admin-results').innerHTML='<div class="admin-table"><table><thead><tr>'+headings.map(h=>'<th scope="col">'+h+'</th>').join('')+'</tr></thead><tbody>'+data.rows.map(r=>'<tr>'+(view==='audit'?[esc(new Date(r.created_at.replace(' ','T')+'Z').toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})),esc(r.actor_email||r.actor_id),esc(r.shop_name||r.shop_id)+'<br><small>'+esc(r.target_email||r.target_id)+'</small>',esc(({swap_start:'เริ่มเข้าดู',swap_stop:'กลับบัญชีแอดมิน',member_create:'เพิ่มสมาชิก',member_plan:'เปลี่ยนสิทธิ์แพ็กเกจ',member_status:'เปลี่ยนสถานะสมาชิก',member_role:'เปลี่ยนสิทธิ์ผู้ดูแล'})[r.action]||r.action),'<span class="audit-reason">'+esc(r.reason||'—')+'</span>']:view==='users'?[esc(r.email)+'<br><small>'+esc(roleLabels[r.member_role]||r.member_role)+'</small>',esc(memberStatus[r.status]||r.status),esc(r.plan_id),esc(r.effective_plan)+'<br><small>'+(r.override_plan?(r.override_expires?'โปรโมชั่นถึง '+esc(new Date(r.override_expires*1000).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})):'โปรโมชั่นไม่จำกัดเวลา'):'ตามสิทธิ์บัญชี')+'</small>',esc(r.shop_count),...(data.role==='owner'?['<button data-member="'+esc(r.id)+'">จัดการสมาชิก</button>']:[])]:[esc(r.name)+'<br><small>/shop/'+esc(r.slug)+'</small>',esc(r.email),r.published?'เผยแพร่':'ฉบับร่าง',esc(r.product_count),...(data.role==='owner'?['<button type="button" data-swap="'+esc(r.id)+'">เข้าสู่หลังบ้านร้านค้า</button>']:[])]).map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'+(data.rows.length?'':'<p>ไม่พบรายการที่ตรงกับการค้นหา</p>');
  if(view==='audit')$('#admin-results').insertAdjacentHTML('afterbegin','<p>ประวัติการจัดการสมาชิกและการเข้าดูร้านค้า · การปิดแท็บหรือหมดเวลา Swap จะไม่มีรายการกดกลับ</p>');
  document.querySelectorAll('[data-member]').forEach(b=>b.onclick=()=>openMember(data.rows.find(r=>r.id===b.dataset.member)));
  document.querySelectorAll('[data-swap]').forEach(b=>b.onclick=()=>openSwap(data.rows.find(r=>r.id===b.dataset.swap)));
- $('#admin-pages').innerHTML=`<button id="admin-prev" ${page<=1?'disabled':''}>ก่อนหน้า</button><span>หน้า ${page} / ${data.pages} · ${data.total} รายการ</span><button id="admin-next" ${page>=data.pages?'disabled':''}>ถัดไป</button>`;
- $('#admin-prev').onclick=()=>{page--;load();};$('#admin-next').onclick=()=>{page++;load();};
+ renderPages(data);
  }catch(error){if(error.name!=='AbortError'&&request===sequence){$('#admin-status').textContent=error.message;$('#admin-results').replaceChildren();$('#admin-pages').replaceChildren();}}
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;page=1;$('#admin-query').value='';load();});$('#admin-search').onsubmit=e=>{e.preventDefault();page=1;load();};load();
@@ -46,3 +48,9 @@ function openMember(member){
  dialog.querySelector('#member-cancel').onclick=()=>dialog.close();dialog.oncancel=e=>{if(busy)e.preventDefault();};dialog.onclose=()=>dialog.remove();
  dialog.querySelector('form').onsubmit=async e=>{e.preventDefault();if(busy)return;const get=id=>dialog.querySelector('#'+id)?.value;const action=member?get('member-action'):'create';const body={action,reason:get('member-reason'),user_id:member?.id,email:get('member-email'),plan:get('member-plan')||null,expires:get('member-expiry')?Math.floor(new Date(get('member-expiry')).getTime()/1000):null,status:get('member-status-select'),role:get('member-role'),confirm_email:get('member-confirm')};busy=true;dialog.querySelectorAll('button').forEach(b=>b.disabled=true);try{const response=await fetch('/api/admin/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Error(data.error);dialog.close();await load();$('#admin-status').textContent=data.message||'บันทึกการเปลี่ยนแปลงแล้ว';}catch(error){dialog.querySelector('#member-message').textContent=error.message;busy=false;dialog.querySelectorAll('button').forEach(b=>b.disabled=false);}};dialog.showModal();
 }
+
+function renderPages(data){
+ $('#admin-pages').innerHTML=`<button id="admin-prev" ${page<=1?'disabled':''}>ก่อนหน้า</button><span>หน้า ${page} / ${data.pages} · ${data.total} รายการ</span><button id="admin-next" ${page>=data.pages?'disabled':''}>ถัดไป</button>`;
+ $('#admin-prev').onclick=()=>{page--;load();};$('#admin-next').onclick=()=>{page++;load();};
+}
+$('#billing-filter').onchange=()=>{page=1;load();};

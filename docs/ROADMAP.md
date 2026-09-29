@@ -428,3 +428,10 @@ Future implementation must enforce quotas server-side using effective account pl
 - Applied upgrade payments shown separately (latest 20), explicitly no PDF/refund-status claim for these records. Pending/review payments remain in existing billing workflow.
 - History is unavailable in admin swap mode; responses are no-store and rate-limited. UI escapes text, restricts document hosts, supports retry and mobile stacking.
 - Remaining: recurring-boundary/annual Sandbox acceptance where not yet observed, payment-method management, refund/dispute review, production resources/domain and launch QA.
+
+
+### Owner billing support view — 2026-09-29
+- Added Owner-only payment tab with email search, 25-row pagination, attention/renewal-off filters, cached subscription status and paid-through timestamps, pending upgrade/downgrade details and Stripe reference IDs.
+- Reads local Mart records only; no Stripe calls, mutations, refunds, retry settlement or entitlement edits from this view. Clearly marks cached timestamps and separates promotion rights.
+- Admin/Support/member denied server-side. Credentials, session parameters and lock tokens excluded. Existing overview text now reflects billing configuration rather than hardcoded disabled.
+- Staging QA: Owner opens การชำระเงิน, searches own email, checks pending downgrade date/status and filters; existing member and audit tabs remain available.

@@ -1,3 +1,5 @@
+import {adminBilling} from './admin-billing.mjs';
+import {billingReady} from './billing.mjs';
 import {planExpression,planBindings} from './plans.mjs';
 // Mart authorization is independent of WordPress and subscription plans.
 export async function adminRole(env,user){
@@ -13,6 +15,7 @@ export async function adminData(env,user,url){
  const role=await adminRole(env,user);
  if(!role)throw Object.assign(new Error('บัญชีนี้ไม่มีสิทธิ์เข้าถึงแอดมิน Mart'),{status:403});
  const view=url.searchParams.get('view')||'overview';
+ if(view==='billing')return adminBilling(env,role,url);
  if(!['overview','users','shops','audit'].includes(view))throw Object.assign(new Error('ไม่พบรายการ'),{status:404});
  const page=Math.max(1,Math.min(100000,Number.parseInt(url.searchParams.get('page'),10)||1));
  const search=(url.searchParams.get('q')||'').trim().slice(0,100);
@@ -27,7 +30,7 @@ export async function adminData(env,user,url){
  }
  if(view==='overview'){
   const stats=await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM shops) shops,(SELECT COUNT(*) FROM shops WHERE published=1) published_shops,(SELECT COUNT(*) FROM products) products,(SELECT COUNT(*) FROM products WHERE status='published') published_products,(SELECT COALESCE(SUM(size),0) FROM media) storage_bytes`).first();
-  return {role,view,stats,environment:env.APP_ENV||'unknown',billing_connected:false};
+  return {role,view,stats,environment:env.APP_ENV||'unknown',billing_connected:billingReady(env)};
  }
  if(view==='users'){
  const roleFilter=url.searchParams.get('role')||'',planFilter=url.searchParams.get('plan')||'',statusFilter=url.searchParams.get('status')||'';
