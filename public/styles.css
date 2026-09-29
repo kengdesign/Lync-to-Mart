@@ -232,3 +232,21 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 #billing-panel .billing-document-links{display:flex;flex-wrap:wrap;gap:10px}
 #billing-panel .billing-document-links a{display:inline-flex;align-items:center;min-height:44px;padding:8px 12px;border:1px solid #e4c8c7;border-radius:8px;color:#bd1917;font-weight:600;text-decoration:none}
 @media(max-width:760px){#billing-panel .billing-history-row{grid-template-columns:1fr;gap:12px}#billing-panel .billing-history-row .billing-document-links{width:100%}}
+
+/* Billing action hierarchy: commit, inspect, refresh, cancel. */
+#billing-panel button{min-height:44px;border:1px solid transparent;line-height:1.5;transition:background-color .15s,border-color .15s;white-space:normal}
+#billing-panel button:is([data-checkout],[data-upgrade-confirm],[data-upgrade-resume],[data-downgrade-confirm],[data-downgrade-retry],[data-renewal-state="resume"]){background:#E32321;color:#fff;border-color:#E32321}
+#billing-panel button:is([data-upgrade-preview],[data-downgrade-preview],[data-history-load]){background:#243b53;color:#fff;border-color:#243b53}
+#billing-panel button[data-refresh-billing]{background:#edf2f7;color:#334155;border-color:#a8b6c5}
+#billing-panel button:is([data-upgrade-abandon],[data-downgrade-cancel],[data-renewal-state="cancel"]){background:#fff7ed;color:#9a3412;border-color:#d58b53}
+#billing-panel button:is([data-checkout],[data-upgrade-confirm],[data-upgrade-resume],[data-downgrade-confirm],[data-downgrade-retry],[data-renewal-state="resume"]):hover:not(:disabled){background:#be1c1a;border-color:#be1c1a;filter:none}
+#billing-panel button:is([data-upgrade-preview],[data-downgrade-preview],[data-history-load]):hover:not(:disabled){background:#172b40;border-color:#172b40;filter:none}
+#billing-panel button[data-refresh-billing]:hover:not(:disabled){background:#dfe7ef;filter:none}
+#billing-panel button:is([data-upgrade-abandon],[data-downgrade-cancel],[data-renewal-state="cancel"]):hover:not(:disabled){background:#ffedd5;border-color:#b9692b;filter:none}
+#billing-panel .billing-document-links a{background:#eef3f8;border-color:#a8b6c5;color:#243b53}
+#billing-panel .billing-document-links a:hover{background:#dfe7ef}
+#billing-panel :is(button,.billing-document-links a):focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+#billing-panel button:disabled{background:#e5e7eb;color:#667085;border-color:#d1d5db;opacity:1;filter:none;cursor:wait}
+#billing-panel .billing-status-actions{gap:16px}
+@media(max-width:600px){#billing-panel .billing-status-actions{flex-direction:column;align-items:stretch}#billing-panel [data-history-load]{width:100%}}
+@media(prefers-reduced-motion:reduce){#billing-panel button{transition:none}}
