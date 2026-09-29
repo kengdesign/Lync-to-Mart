@@ -435,3 +435,10 @@ Future implementation must enforce quotas server-side using effective account pl
 - Reads local Mart records only; no Stripe calls, mutations, refunds, retry settlement or entitlement edits from this view. Clearly marks cached timestamps and separates promotion rights.
 - Admin/Support/member denied server-side. Credentials, session parameters and lock tokens excluded. Existing overview text now reflects billing configuration rather than hardcoded disabled.
 - Staging QA: Owner opens การชำระเงิน, searches own email, checks pending downgrade date/status and filters; existing member and audit tabs remain available.
+
+
+### Subscription card update — 2026-09-29
+- Hosted Checkout setup-only flow; verifies successful SetupIntent/payment-method ownership before setting the existing subscription default_payment_method. Never treats redirect as success.
+- Durable pending/review/applied operations, idempotent recovery, abandon/expire flow, existing webhook reconciliation. Preserves price, term and cancellation choice; blocks overlapping plan schedules/updates.
+- Card numbers/CVC never handled by Mart. Additional restricted-key read permissions may be required; manual Sandbox acceptance remains required.
+- Owner billing view flags unresolved card changes. Migration 0021 additive; no new secrets/webhook events.

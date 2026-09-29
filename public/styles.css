@@ -250,3 +250,5 @@ h1,h2,h3,.brand{letter-spacing:-.025em}h1{font-size:1.85rem;font-weight:700;line
 #billing-panel .billing-status-actions{gap:16px}
 @media(max-width:600px){#billing-panel .billing-status-actions{flex-direction:column;align-items:stretch}#billing-panel [data-history-load]{width:100%}}
 @media(prefers-reduced-motion:reduce){#billing-panel button{transition:none}}
+
+#billing-panel .billing-card-method{margin-top:28px;padding:20px;border:1px solid #d8dfe3;border-radius:14px;background:#f9fafb}#billing-panel .billing-card-method .actions{margin:16px 0}#billing-panel button[data-card-update]{background:#243b53;border-color:#243b53;color:#fff}#billing-panel button[data-card-cancel]{background:#fff7ed;border-color:#d58b53;color:#9a3412}#billing-panel .billing-card-method button:disabled{background:#e5e7eb;color:#667085;border-color:#d1d5db}@media(max-width:600px){#billing-panel .billing-card-method{padding:16px}#billing-panel .billing-card-method button{width:100%}}

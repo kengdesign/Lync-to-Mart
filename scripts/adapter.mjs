@@ -21,6 +21,7 @@ export function database(path=':memory:'){
  db.exec(readFileSync(new URL('../migrations/0018_billing_upgrades.sql',import.meta.url),'utf8'));
  if(!db.prepare("PRAGMA table_info(billing_upgrades)").all().some(c=>c.name==='pricing_mode'))db.exec(readFileSync(new URL('../migrations/0019_upgrade_policy.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../migrations/0020_billing_downgrades.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('../migrations/0021_billing_cards.sql',import.meta.url),'utf8'));
  const wrap=(sql,args=[])=>({bind(...values){return wrap(sql,values);},async first(){return db.prepare(sql).get(...args)||null;},async all(){return {results:db.prepare(sql).all(...args)};},async run(){const r=db.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}});
  return {prepare:sql=>wrap(sql),async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results;}catch(err){db.exec('ROLLBACK');throw err;}},close(){db.close();}};
 }

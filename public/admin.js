@@ -1,4 +1,4 @@
-import {renderAdminBilling} from './admin-billing.js?v=1';
+import {renderAdminBilling} from './admin-billing.js?v=2';
 const roleLabels={owner:'แอดมินสูงสุด (Owner)',admin:'ผู้ดูแลระบบ (Admin)',support:'เจ้าหน้าที่ช่วยเหลือ (Support)',member:'สมาชิก / ร้านค้า'};
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let view='overview',page=1,sequence=0,controller;

@@ -63,3 +63,11 @@ test('canceled renewal must be resumed explicitly before scheduling a paid downg
  await mountBilling({root,items:[{id:'growth',monthly:49900},{id:'brand',monthly:99000}],api:async()=>({ready:true,eligible:true,subscription:{status:'active',plan:'brand',period:'monthly',cancel_at_period_end:true}})});
  assert.equal(root.querySelector('[data-downgrade-preview]'),null);assert.match(root.querySelector('.billing-downgrade').textContent,/เปิดต่ออายุอัตโนมัติก่อน/);assert.ok(root.querySelector('[data-renewal]'));
 });
+
+test('card setup panel resumes pending setup and never treats a return URL as success',async t=>{
+ const dom=new JSDOM('<section></section>',{url:'https://mart.test/?billing=card-return'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section');
+ const data={ready:true,eligible:true,subscription:{status:'active',plan:'brand',period:'monthly'},card_update:{status:'pending'}};
+ await mountBilling({root,api:async()=>data});assert.match(root.querySelector('[data-card-update]').textContent,/กลับไปบันทึกบัตร/);assert.ok(root.querySelector('[data-card-cancel]'));assert.match(root.querySelector('[data-billing-message]').textContent,/ยังไม่ยืนยันว่าเปลี่ยนบัตรสำเร็จ/);
+ data.card_update.status='review';await mountBilling({root,api:async()=>data});assert.equal(root.querySelector('[data-card-update]'),null);assert.match(root.textContent,/รายการเปลี่ยนบัตรต้องให้ผู้ดูแลตรวจสอบ/);
+ data.card_update=null;data.downgrade={status:'scheduled',plan:'growth',effective_at:1800000000,amount:49900,period:'monthly'};await mountBilling({root,api:async()=>data});assert.equal(root.querySelector('[data-card-update]'),null);
+});
