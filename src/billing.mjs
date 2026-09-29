@@ -14,7 +14,7 @@ async function stripe(env,path,values=null,key){
  const headers={Authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'Stripe-Version':'2025-09-30.clover'};
  if(values)headers['Content-Type']='application/x-www-form-urlencoded';if(key)headers['Idempotency-Key']=key;
  let res;try{res=await fetch('https://api.stripe.com/v1/'+path,{method:values?'POST':'GET',headers,body:values?new URLSearchParams(values):undefined,signal:AbortSignal.timeout(10000)});}catch{fail('ติดต่อ Stripe ไม่สำเร็จ กรุณาลองอีกครั้ง',502);}
- const data=await res.json();if(res.status===403&&path.startsWith('subscription_schedules'))fail('Stripe ยังไม่อนุญาตจัดการ Subscription schedules กรุณาให้ผู้ดูแลเปิดสิทธิ์ Write ในบัญชีของคุณสำหรับ Restricted key ที่ใช้กับ Staging',503);if(!res.ok)fail('Stripe ไม่สามารถดำเนินการได้ กรุณาตรวจการตั้งค่าหรือลองใหม่',502);
+ const data=await res.json();if(res.status===403&&path.startsWith('invoices'))fail('Stripe ยังไม่อนุญาตอ่านบิล กรุณาให้ผู้ดูแลเปิดสิทธิ์ Invoices: Read ในบัญชีของคุณสำหรับ Restricted key ของ Staging',503);if(res.status===403&&path.startsWith('subscription_schedules'))fail('Stripe ยังไม่อนุญาตจัดการ Subscription schedules กรุณาให้ผู้ดูแลเปิดสิทธิ์ Write ในบัญชีของคุณสำหรับ Restricted key ที่ใช้กับ Staging',503);if(!res.ok)fail('Stripe ไม่สามารถดำเนินการได้ กรุณาตรวจการตั้งค่าหรือลองใหม่',502);
  if(data.livemode===true)fail('ไม่อนุญาตข้อมูลชำระเงินจริงใน Staging',502);return data;
 }
 async function account(env,id){return q(env,'SELECT * FROM billing_accounts WHERE user_id=?',id).first();}
@@ -297,4 +297,20 @@ export async function cancelDowngrade(env,user){
   else if(s.status!=='released')fail('กรุณาตรวจสอบสถานะกำหนดเปลี่ยนแพ็กเกจ',409);
   await q(env,"UPDATE billing_downgrades SET status='canceled',updated_at=? WHERE id=?",now(),d.id).run();
  });return billingStatus(env,user);
+}
+
+// Read-only history: identity comes exclusively from the authenticated account.
+export async function billingHistory(env,user,cursor=''){
+ allowed(env,user);
+ if(!await recoveryLimit(env,'billing-history:'+user.id,60))fail('กรุณารอ 15 นาทีแล้วลองใหม่',429);
+ if(cursor&&!/^in_[a-zA-Z0-9]{1,100}$/.test(cursor))fail('หน้าประวัติไม่ถูกต้อง');
+ const row=await account(env,user.id);
+ if(!row?.customer_id)return {invoices:[],upgrades:[],next_cursor:null};
+ const own=invoice=>{if(invoice.customer!==row.customer_id||invoice.livemode!==false)fail('ข้อมูลเอกสารไม่ตรงกับบัญชีทดสอบ',502);};
+ if(cursor)own(await stripe(env,'invoices/'+cursor));
+ const list=await stripe(env,'invoices?customer='+encodeURIComponent(row.customer_id)+'&limit=20'+(cursor?'&starting_after='+encodeURIComponent(cursor):''));
+ const documentURL=(value,host)=>{if(!value)return null;try{const u=new URL(value);if(u.protocol==='https:'&&u.hostname===host&&!u.username&&!u.password&&!u.port)return u.href;}catch{}return null;};
+ const invoices=list.data.map(i=>{own(i);return {id:i.id,number:i.number,created:i.created,status:i.status,currency:i.currency,total:i.total,amount_paid:i.amount_paid,amount_remaining:i.amount_remaining,url:documentURL(i.hosted_invoice_url,'invoice.stripe.com'),pdf:documentURL(i.invoice_pdf,'pay.stripe.com')};});
+ const {results:upgrades}=cursor?{results:[]}:await q(env,"SELECT id,from_plan,to_plan,amount,period,pricing_mode,updated_at FROM billing_upgrades WHERE user_id=? AND status='applied' ORDER BY updated_at DESC,id DESC LIMIT 20",user.id).all();
+ return {invoices,upgrades,next_cursor:list.has_more&&list.data.length?list.data.at(-1).id:null};
 }

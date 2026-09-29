@@ -1,4 +1,4 @@
-import {previewDowngrade,scheduleDowngrade,cancelDowngrade,previewUpgrade,startUpgrade,abandonUpgrade,billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
+import {billingHistory,previewDowngrade,scheduleDowngrade,cancelDowngrade,previewUpgrade,startUpgrade,abandonUpgrade,billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
 import {assertActive,manageMember,activeMemberSQL} from './member-controls.mjs';
 import {requestRegistration,completeRegistration} from './registration.mjs';
 import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
@@ -106,6 +106,7 @@ async function handle(req,env,ctx){
   const user=await owner(req,env),plan=await planFor(env,user);
   if(user.impersonation&&p.startsWith('/api/account/'))fail('โหมดเข้าดูแทนไม่เปิดข้อมูลความปลอดภัยของบัญชี',403);
   if(p.startsWith('/api/billing/')&&user.impersonation)fail('โหมดเข้าดูแทนไม่สามารถเข้าถึงการชำระเงิน',403);
+  if(p==='/api/billing/history'&&method==='GET')return json(await billingHistory(env,user,url.searchParams.get('after')||''));
   if(p==='/api/billing/status'&&method==='GET')return json(await billingStatus(env,user));
   if(p==='/api/billing/checkout'&&method==='POST')return json(await checkout(env,user,await body(req),url.origin));
   if(p==='/api/billing/downgrade-preview'&&method==='POST')return json(await previewDowngrade(env,user,await body(req)));

@@ -420,3 +420,11 @@ Future implementation must enforce quotas server-side using effective account pl
 - Monthly acceptance reported passed by merchant; annual and full-cycle-reset acceptance remain separate gates.
 - Added same-interval paid downgrades at the next billing boundary through Stripe schedules; durable retries and cancel-request flow. Existing term and renewal consent preserved.
 - Data retained; plan changes only reflect current paid Stripe state. Requires Subscription schedules write permission and Sandbox phase-transition acceptance before production.
+
+
+### Billing history — 2026-09-29
+- User confirmed the preceding downgrade testing passed; automated tests do not establish every future renewal/annual boundary acceptance.
+- Added on-demand invoice history, 20 invoices per request with older-page cursor, hosted Stripe document and PDF links; server derives customer from authenticated account and checks each invoice's customer/test mode. No subscription mutations or new secret/migration.
+- Applied upgrade payments shown separately (latest 20), explicitly no PDF/refund-status claim for these records. Pending/review payments remain in existing billing workflow.
+- History is unavailable in admin swap mode; responses are no-store and rate-limited. UI escapes text, restricts document hosts, supports retry and mobile stacking.
+- Remaining: recurring-boundary/annual Sandbox acceptance where not yet observed, payment-method management, refund/dispute review, production resources/domain and launch QA.
