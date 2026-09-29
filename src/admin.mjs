@@ -1,3 +1,4 @@
+import {adminBackup} from './admin-backup.mjs';
 import {adminBilling} from './admin-billing.mjs';
 import {billingReady} from './billing.mjs';
 import {planExpression,planBindings} from './plans.mjs';
@@ -15,6 +16,7 @@ export async function adminData(env,user,url){
  const role=await adminRole(env,user);
  if(!role)throw Object.assign(new Error('บัญชีนี้ไม่มีสิทธิ์เข้าถึงแอดมิน Mart'),{status:403});
  const view=url.searchParams.get('view')||'overview';
+ if(view==='backup')return adminBackup(env,role);
  if(view==='billing')return adminBilling(env,role,url);
  if(!['overview','users','shops','audit'].includes(view))throw Object.assign(new Error('ไม่พบรายการ'),{status:404});
  const page=Math.max(1,Math.min(100000,Number.parseInt(url.searchParams.get('page'),10)||1));

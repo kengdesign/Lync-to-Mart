@@ -1,3 +1,4 @@
+import {renderAdminBackup} from './admin-backup.js';
 import {renderAdminBilling} from './admin-billing.js?v=2';
 const roleLabels={owner:'แอดมินสูงสุด (Owner)',admin:'ผู้ดูแลระบบ (Admin)',support:'เจ้าหน้าที่ช่วยเหลือ (Support)',member:'สมาชิก / ร้านค้า'};
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -8,12 +9,14 @@ async function load(){
  try{
  const response=await fetch('/api/admin?'+new URLSearchParams({view,page,q:$('#admin-query').value,role:$('#filter-role').value,plan:$('#filter-plan').value,status:$('#filter-status').value,billing_filter:$('#billing-filter').value}),{signal:controller.signal});const data=await response.json();if(request!==sequence)return;
  if(!response.ok){$('#admin-content').hidden=true;$('#admin-login').hidden=response.status!==401;throw Error(data.error||'โหลดข้อมูลไม่สำเร็จ');}
+ $('[data-view="backup"]').hidden=data.role!=='owner';
  $('#billing-tools').hidden=view!=='billing';$('[data-view="billing"]').hidden=data.role!=='owner';
  $('#member-tools').hidden=view!=='users';$('#add-member').hidden=data.role!=='owner';
- $('#admin-content').hidden=false;$('#admin-login').hidden=true;$('#admin-status').textContent='สิทธิ์: '+(roleLabels[data.role]||data.role)+' · ข้อมูลสำหรับผู้ดูแลระบบ';$('#admin-search').hidden=view==='overview';
+ $('#admin-content').hidden=false;$('#admin-login').hidden=true;$('#admin-status').textContent='สิทธิ์: '+(roleLabels[data.role]||data.role)+' · ข้อมูลสำหรับผู้ดูแลระบบ';$('#admin-search').hidden=['overview','backup'].includes(view);
  $('[data-view="audit"]').hidden=data.role!=='owner';
  $('label[for="admin-query"]').textContent=view==='billing'?'ค้นหาอีเมลสมาชิก':view==='audit'?'ค้นหาอีเมลผู้ดูแล อีเมลสมาชิก ชื่อร้าน หรือเหตุผล':'ค้นหาอีเมล ชื่อร้าน หรือชื่อในลิงก์';
  document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.view===view)));
+ if(view==='backup'){renderAdminBackup($('#admin-results'),data);$('#admin-pages').replaceChildren();return;}
  if(view==='overview'){
  const s=data.stats;$('#admin-results').innerHTML='<div class="admin-stats">'+[['สมาชิก',s.users],['ร้านค้าทั้งหมด',s.shops],['ร้านค้าที่เผยแพร่',s.published_shops],['สินค้าทั้งหมด',s.products],['สินค้าที่เผยแพร่',s.published_products],['พื้นที่ไฟล์',size(s.storage_bytes)]].map(([label,value])=>`<article class="admin-stat">${esc(label)}<strong>${esc(value)}</strong></article>`).join('')+'</div><p>ระบบ: '+esc(data.environment)+' · '+(data.billing_connected?'ตั้งค่าชำระเงินทดสอบ Stripe แล้ว':'ยังไม่เปิดระบบชำระเงิน')+'</p><p>จัดการสมาชิกและสิทธิ์โปรโมชั่นได้จากเมนูสมาชิก</p>';$('#admin-pages').replaceChildren();return;
  }
