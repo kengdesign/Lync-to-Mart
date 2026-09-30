@@ -1,4 +1,4 @@
-// Sandbox-only integration. Production requires a separate reviewed rollout.
+// Strict environment isolation: Staging uses Test, Production uses Live.
 import {addBillingMonths,upgradePolicy} from './billing-policy.mjs';
 import {recoveryLimit} from './password-recovery.mjs';
 import {boundedHTML} from './import.mjs';
@@ -7,15 +7,20 @@ const now=()=>Math.floor(Date.now()/1000);
 const q=(env,sql,...args)=>env.DB.prepare(sql).bind(...args);
 export const amounts={starter:{monthly:19900,yearly:199000},growth:{monthly:49900,yearly:499000},brand:{monthly:99000,yearly:990000}};
 const priceKey=(plan,period)=>`STRIPE_PRICE_${plan.toUpperCase()}_${period.toUpperCase()}`;
-export function billingReady(env){return env.APP_ENV==='staging'&&env.BILLING_ENABLED==='true'&&/^(rk|sk)_test_/.test(env.STRIPE_SECRET_KEY||'')&&!!env.STRIPE_WEBHOOK_SECRET&&!!env.STRIPE_VAT_RATE_ID&&Object.keys(amounts).every(p=>['monthly','yearly'].every(t=>/^price_/.test(env[priceKey(p,t)]||'')));}
-function enabled(env){if(!billingReady(env))fail('ระบบชำระเงินทดสอบยังตั้งค่าไม่ครบ กรุณารอผู้ดูแลเปิดใช้งาน',503);}
-function allowed(env,user){enabled(env);if(!(env.STRIPE_TEST_EMAILS||'').split(',').map(x=>x.trim().toLowerCase()).includes(user.email.toLowerCase()))fail('บัญชีนี้ยังไม่ได้รับสิทธิ์ทดสอบชำระเงิน',403);}
+export const billingMode=env=>env.APP_ENV==='production'?'live':env.APP_ENV==='staging'?'test':null;
+const matchesMode=(env,value)=>billingMode(env)!==null&&value=== (billingMode(env)==='live');
+const eligible=(env,user)=>billingMode(env)==='live'||(billingMode(env)==='test'&&(env.STRIPE_TEST_EMAILS||'').split(',').map(x=>x.trim().toLowerCase()).includes(user.email.toLowerCase()));
+export function billingReady(env){const mode=billingMode(env);return !!mode&&env.BILLING_ENABLED==='true'&&new RegExp('^(rk|sk)_'+mode+'_').test(env.STRIPE_SECRET_KEY||'')&&!!env.STRIPE_WEBHOOK_SECRET&&!!env.STRIPE_VAT_RATE_ID&&Object.keys(amounts).every(p=>['monthly','yearly'].every(t=>/^price_/.test(env[priceKey(p,t)]||'')));}
+function enabled(env){if(!billingReady(env))fail('ระบบชำระเงินยังตั้งค่าไม่ครบ กรุณารอผู้ดูแลเปิดใช้งาน',503);}
+function allowed(env,user){enabled(env);if(!eligible(env,user))fail('บัญชีนี้ยังไม่ได้รับสิทธิ์ทดสอบชำระเงิน',403);}
+// Lists and expanded objects must not hide resources from the other Stripe mode.
+function validateModes(env,value){if(!value||typeof value!=='object')return;if(Object.hasOwn(value,'livemode')&&!matchesMode(env,value.livemode))fail('โหมดข้อมูล Stripe ไม่ตรงกับระบบ',502);for(const child of Object.values(value))validateModes(env,child);}
 async function stripe(env,path,values=null,key){
- const headers={Authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'Stripe-Version':'2025-09-30.clover'};
+ enabled(env);const headers={Authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'Stripe-Version':'2025-09-30.clover'};
  if(values)headers['Content-Type']='application/x-www-form-urlencoded';if(key)headers['Idempotency-Key']=key;
  let res;try{res=await fetch('https://api.stripe.com/v1/'+path,{method:values?'POST':'GET',headers,body:values?new URLSearchParams(values):undefined,signal:AbortSignal.timeout(10000)});}catch{fail('ติดต่อ Stripe ไม่สำเร็จ กรุณาลองอีกครั้ง',502);}
- const data=await res.json();if(res.status===403&&path.startsWith('setup_intents'))fail('กรุณาเปิดสิทธิ์ Setup Intents: Read และ Payment Methods: Read ของ Restricted key ในบัญชี Stripe Sandbox ของ Mart',503);if(res.status===403&&path.startsWith('invoices'))fail('Stripe ยังไม่อนุญาตอ่านบิล กรุณาให้ผู้ดูแลเปิดสิทธิ์ Invoices: Read ในบัญชีของคุณสำหรับ Restricted key ของ Staging',503);if(res.status===403&&path.startsWith('subscription_schedules'))fail('Stripe ยังไม่อนุญาตจัดการ Subscription schedules กรุณาให้ผู้ดูแลเปิดสิทธิ์ Write ในบัญชีของคุณสำหรับ Restricted key ที่ใช้กับ Staging',503);if(!res.ok)fail('Stripe ไม่สามารถดำเนินการได้ กรุณาตรวจการตั้งค่าหรือลองใหม่',502);
- if(data.livemode===true)fail('ไม่อนุญาตข้อมูลชำระเงินจริงใน Staging',502);return data;
+ const data=await res.json();if(res.status===403&&path.startsWith('setup_intents'))fail('กรุณาเปิดสิทธิ์ Setup Intents: Read และ Payment Methods: Read ของ Restricted key ในบัญชี Stripe ของ Mart',503);if(res.status===403&&path.startsWith('invoices'))fail('Stripe ยังไม่อนุญาตอ่านบิล กรุณาให้ผู้ดูแลเปิดสิทธิ์ Invoices: Read ในบัญชีของคุณสำหรับ Restricted key ของระบบนี้',503);if(res.status===403&&path.startsWith('subscription_schedules'))fail('Stripe ยังไม่อนุญาตจัดการ Subscription schedules กรุณาให้ผู้ดูแลเปิดสิทธิ์ Write ในบัญชีของคุณสำหรับ Restricted key ของระบบนี้',503);if(!res.ok)fail('Stripe ไม่สามารถดำเนินการได้ กรุณาตรวจการตั้งค่าหรือลองใหม่',502);
+ validateModes(env,data);return data;
 }
 async function account(env,id){return q(env,'SELECT * FROM billing_accounts WHERE user_id=?',id).first();}
 async function locked(env,id,fn){
@@ -24,13 +29,13 @@ async function locked(env,id,fn){
  if(!r.meta.changes)fail('กำลังตรวจสอบการชำระเงิน กรุณารอสักครู่แล้วลองใหม่',409);
  try{return await fn(await account(env,id));}finally{await q(env,'UPDATE billing_accounts SET lock_token=NULL,lock_until=0 WHERE user_id=? AND lock_token=?',id,token).run();}
 }
-function selection(env,price){for(const plan of Object.keys(amounts))for(const period of ['monthly','yearly'])if(env[priceKey(plan,period)]===price?.id&&price.currency==='thb'&&price.unit_amount===amounts[plan][period]&&price.recurring?.interval===(period==='monthly'?'month':'year')&&price.recurring.interval_count===1&&price.tax_behavior==='inclusive'&&price.livemode===false)return {plan,period};return null;}
+function selection(env,price){for(const plan of Object.keys(amounts))for(const period of ['monthly','yearly'])if(env[priceKey(plan,period)]===price?.id&&price.currency==='thb'&&price.unit_amount===amounts[plan][period]&&price.recurring?.interval===(period==='monthly'?'month':'year')&&price.recurring.interval_count===1&&price.tax_behavior==='inclusive'&&matchesMode(env,price.livemode))return {plan,period};return null;}
 async function validatedPrice(env,plan,period){
  const [price,tax]=await Promise.all([stripe(env,'prices/'+env[priceKey(plan,period)]),stripe(env,'tax_rates/'+env.STRIPE_VAT_RATE_ID)]);
  const problems=[];
  if(!price.active)problems.push('Price ถูกปิดใช้งาน');
  if(price.id!==env[priceKey(plan,period)])problems.push('Price ID ไม่ตรง');
- if(price.livemode!==false||tax.livemode!==false)problems.push('ต้องใช้ข้อมูล Sandbox');
+ if(!matchesMode(env,price.livemode)||!matchesMode(env,tax.livemode))problems.push('โหมด Price และ Tax rate ต้องตรงกับระบบ');
  if(price.currency!=='thb')problems.push('สกุลเงินต้องเป็น THB');
  if(price.unit_amount!==amounts[plan][period])problems.push(`ราคาต้องเป็น ฿${amounts[plan][period]/100} แต่ Stripe เป็น ฿${Number(price.unit_amount)/100}`);
  if(price.recurring?.interval!==(period==='monthly'?'month':'year')||price.recurring?.interval_count!==1)problems.push(`รอบราคาต้องเป็นทุก 1 ${period==='monthly'?'เดือน':'ปี'}`);
@@ -52,7 +57,7 @@ async function reconcile(env,row){
  if(ongoing.length>1||list.data.some(s=>!relevant.includes(s)))fail('พบรายการสมัครสมาชิกที่ต้องให้ผู้ดูแลตรวจสอบ',409);
  const sub=ongoing[0]||relevant.sort((a,b)=>b.created-a.created)[0];
  if(!sub)return row;
- if(sub.livemode!==false||sub.customer!==row.customer_id)fail('ข้อมูลบัญชีชำระเงินไม่ตรงกัน',502);
+ if(!matchesMode(env,sub.livemode)||sub.customer!==row.customer_id)fail('ข้อมูลบัญชีชำระเงินไม่ตรงกัน',502);
  await syncDowngrade(env,row,sub);
  const items=sub.items?.data||[],choice=items.length===1&&items[0].quantity===1?selection(env,items[0].price):null;
  const invoice=sub.latest_invoice;
@@ -66,7 +71,7 @@ async function reconcile(env,row){
  ]);return account(env,row.user_id);
 }
 export async function billingStatus(env,user){
- const row=await account(env,user.id);return {ready:billingReady(env),eligible:(env.STRIPE_TEST_EMAILS||'').split(',').map(x=>x.trim().toLowerCase()).includes(user.email.toLowerCase()),mode:'test',card_update:await cardUpdateStatus(env,user.id),downgrade:await downgradeStatus(env,user.id),upgrade:await upgradeStatus(env,user.id),subscription:row?.subscription_id?{status:row.status,plan:row.plan_id,period:row.period,paid_until:row.paid_until,cancel_at_period_end:!!row.cancel_at_period_end,updated_at:row.updated_at}:null};
+ const row=await account(env,user.id);return {ready:billingReady(env),eligible:eligible(env,user),mode:billingMode(env),card_update:await cardUpdateStatus(env,user.id),downgrade:await downgradeStatus(env,user.id),upgrade:await upgradeStatus(env,user.id),subscription:row?.subscription_id?{status:row.status,plan:row.plan_id,period:row.period,paid_until:row.paid_until,cancel_at_period_end:!!row.cancel_at_period_end,updated_at:row.updated_at}:null};
 }
 export async function checkout(env,user,input,origin){
  allowed(env,user);origin=env.RECOVERY_ORIGIN||origin;if(!await recoveryLimit(env,'billing:'+user.id,60))fail('กรุณารอ 15 นาทีแล้วลองใหม่',429);const {plan,period}=input;if(!Object.hasOwn(amounts,plan)||!Object.hasOwn(amounts[plan],period))fail('เลือกแพ็กเกจและรอบชำระให้ถูกต้อง');
@@ -100,7 +105,7 @@ export async function verifySignature(raw,header,secret,clock=now()){
 export async function billingWebhook(req,env){
  enabled(env);const raw=await boundedHTML(req,262144);if(!await verifySignature(raw,req.headers.get('stripe-signature'),env.STRIPE_WEBHOOK_SECRET))fail('Invalid webhook signature',400);
  let event;try{event=JSON.parse(raw);}catch{fail('Invalid event');}
- if(event.livemode!==false||typeof event.id!=='string'||!event.id.startsWith('evt_'))fail('Invalid test event');
+ if(!matchesMode(env,event.livemode)||typeof event.id!=='string'||!event.id.startsWith('evt_'))fail('Invalid event mode or ID');
  if(await q(env,'SELECT id FROM billing_events WHERE id=?',event.id).first())return {received:true};
  if(!['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.async_payment_failed','customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','invoice.paid','invoice.payment_failed'].includes(event.type))return {received:true};
  const customer=event.data?.object?.customer;if(typeof customer!=='string')return {received:true};
@@ -113,7 +118,7 @@ const pendingUpgrade=(env,id)=>q(env,"SELECT * FROM billing_upgrades WHERE user_
 async function upgradeStatus(env,id){const u=await pendingUpgrade(env,id);return u?{id:u.id,plan:u.to_plan,amount:u.amount,period:u.period,pricing_mode:u.pricing_mode,status:u.status,cancel_at_period_end:!!u.cancel_at_period_end}:null;}
 async function upgradeSubscription(env,row){
  const sub=await stripe(env,'subscriptions/'+row.subscription_id+'?expand[]=latest_invoice');
- if(sub.livemode!==false||sub.customer!==row.customer_id||sub.metadata?.app!=='lync-to-mart'||sub.metadata?.user_id!==row.user_id)fail('ข้อมูลการสมัครไม่ตรงกับบัญชี',409);
+ if(!matchesMode(env,sub.livemode)||sub.customer!==row.customer_id||sub.metadata?.app!=='lync-to-mart'||sub.metadata?.user_id!==row.user_id)fail('ข้อมูลการสมัครไม่ตรงกับบัญชี',409);
  return sub;
 }
 function upgradeChoice(env,sub){const item=sub.items?.data?.[0];return sub.items?.data?.length===1&&item.quantity===1?selection(env,item.price):null;}
@@ -177,7 +182,7 @@ async function settleUpgrade(env,row){
  if(session.status==='expired'){await q(env,"UPDATE billing_upgrades SET status='expired',updated_at=? WHERE id=?",now(),u.id).run();return;}
  if(session.status!=='complete'||session.payment_status!=='paid')return;
  const review=async()=>{await q(env,"UPDATE billing_upgrades SET status='review',updated_at=? WHERE id=?",now(),u.id).run();};
- if(session.livemode!==false||session.mode!=='payment'||session.customer!==row.customer_id||session.client_reference_id!==row.user_id||session.metadata?.upgrade_id!==u.id||session.metadata?.user_id!==row.user_id||session.metadata?.app!=='lync-to-mart'||session.currency!=='thb'||session.amount_total!==u.amount){await review();return;}
+ if(!matchesMode(env,session.livemode)||session.mode!=='payment'||session.customer!==row.customer_id||session.client_reference_id!==row.user_id||session.metadata?.upgrade_id!==u.id||session.metadata?.user_id!==row.user_id||session.metadata?.app!=='lync-to-mart'||session.currency!=='thb'||session.amount_total!==u.amount){await review();return;}
  const sub=await upgradeSubscription(env,{...row,subscription_id:u.subscription_id}),choice=upgradeChoice(env,sub),item=sub.items?.data?.[0];
  // Detect an update whose response was lost, including after the next renewal.
  if(sub.metadata?.mart_upgrade_id===u.id&&choice?.plan===u.to_plan&&choice.period===u.period){
@@ -237,14 +242,14 @@ export async function previewDowngrade(env,user,input){
  allowed(env,user);if(!await recoveryLimit(env,'billing:'+user.id,60))fail('กรุณารอ 15 นาทีแล้วลองใหม่',429);
  return locked(env,user.id,async row=>{row=await reconcile(env,row);if(await pendingDowngrade(env,user.id))fail('มีคำขอลดแพ็กเกจอยู่แล้ว กรุณาจัดการคำขอเดิมก่อน',409);return downgradeQuote(env,row,input.plan);});
 }
-const scheduleOwner=(s,d,row)=>s.livemode===false&&s.customer===row.customer_id&&(!d.schedule_id||s.id===d.schedule_id)&&(s.subscription===d.subscription_id||s.released_subscription===d.subscription_id||(d.schedule_id===s.id&&!s.subscription&&!s.released_subscription&&['canceled','completed'].includes(s.status)));
-async function ownedSchedule(env,d,row){const s=await stripe(env,'subscription_schedules/'+d.schedule_id);if(!scheduleOwner(s,d,row))fail('ข้อมูลกำหนดเปลี่ยนแพ็กเกจไม่ตรงกับบัญชี',409);return s;}
+const scheduleOwner=(env,s,d,row)=>matchesMode(env,s.livemode)&&s.customer===row.customer_id&&(!d.schedule_id||s.id===d.schedule_id)&&(s.subscription===d.subscription_id||s.released_subscription===d.subscription_id||(d.schedule_id===s.id&&!s.subscription&&!s.released_subscription&&['canceled','completed'].includes(s.status)));
+async function ownedSchedule(env,d,row){const s=await stripe(env,'subscription_schedules/'+d.schedule_id);if(!scheduleOwner(env,s,d,row))fail('ข้อมูลกำหนดเปลี่ยนแพ็กเกจไม่ตรงกับบัญชี',409);return s;}
 async function createDowngradeSchedule(env,d,row){
  if(d.schedule_id)return ownedSchedule(env,d,row);
  if(now()-d.created_at>23*3600){await q(env,"UPDATE billing_downgrades SET status='review',updated_at=? WHERE id=?",now(),d.id).run();fail('คำขอค้างเกินเวลา กรุณาให้ผู้ดูแลตรวจสอบ',409);}
  // Retrying a lost response uses the original key, never an unrelated attached schedule.
  const s=await stripe(env,'subscription_schedules',{from_subscription:d.subscription_id},'mart-downgrade-create-'+d.id);
- if(!scheduleOwner(s,d,row))fail('ข้อมูลกำหนดเปลี่ยนแพ็กเกจไม่ตรงกับบัญชี',409);
+ if(!scheduleOwner(env,s,d,row))fail('ข้อมูลกำหนดเปลี่ยนแพ็กเกจไม่ตรงกับบัญชี',409);
  await q(env,'UPDATE billing_downgrades SET schedule_id=?,updated_at=? WHERE id=?',s.id,now(),d.id).run();return s;
 }
 function configuredDowngrade(s,d){
@@ -309,7 +314,7 @@ export async function billingHistory(env,user,cursor=''){
  if(cursor&&!/^in_[a-zA-Z0-9]{1,100}$/.test(cursor))fail('หน้าประวัติไม่ถูกต้อง');
  const row=await account(env,user.id);
  if(!row?.customer_id)return {invoices:[],upgrades:[],next_cursor:null};
- const own=invoice=>{if(invoice.customer!==row.customer_id||invoice.livemode!==false)fail('ข้อมูลเอกสารไม่ตรงกับบัญชีทดสอบ',502);};
+ const own=invoice=>{if(invoice.customer!==row.customer_id||!matchesMode(env,invoice.livemode))fail('ข้อมูลเอกสารไม่ตรงกับบัญชี',502);};
  if(cursor)own(await stripe(env,'invoices/'+cursor));
  const list=await stripe(env,'invoices?customer='+encodeURIComponent(row.customer_id)+'&limit=20'+(cursor?'&starting_after='+encodeURIComponent(cursor):''));
  const documentURL=(value,host)=>{if(!value)return null;try{const u=new URL(value);if(u.protocol==='https:'&&u.hostname===host&&!u.username&&!u.password&&!u.port)return u.href;}catch{}return null;};
@@ -321,12 +326,12 @@ export async function billingHistory(env,user,cursor=''){
 const pendingCard=(env,id)=>q(env,"SELECT * FROM billing_cards WHERE user_id=? AND status IN ('pending','review')",id).first();
 async function cardUpdateStatus(env,id){const c=await q(env,'SELECT status,updated_at FROM billing_cards WHERE user_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1',id).first();return c||null;}
 async function cardReview(env,c){await q(env,"UPDATE billing_cards SET status='review',updated_at=? WHERE id=?",now(),c.id).run();}
-function ownsCardSession(s,c,row){return s.livemode===false&&s.mode==='setup'&&s.customer===row.customer_id&&s.client_reference_id===row.user_id&&s.metadata?.mart_card_id===c.id;}
+function ownsCardSession(env,s,c,row){return matchesMode(env,s.livemode)&&s.mode==='setup'&&s.customer===row.customer_id&&s.client_reference_id===row.user_id&&s.metadata?.mart_card_id===c.id;}
 async function cardSession(env,c,row){
- if(c.session_id){const s=await stripe(env,'checkout/sessions/'+c.session_id);if(!ownsCardSession(s,c,row))fail('รายการบันทึกบัตรไม่ตรงกับบัญชี',409);return s;}
+ if(c.session_id){const s=await stripe(env,'checkout/sessions/'+c.session_id);if(!ownsCardSession(env,s,c,row))fail('รายการบันทึกบัตรไม่ตรงกับบัญชี',409);return s;}
  if(now()-c.created_at>23*3600){await cardReview(env,c);fail('รายการบันทึกบัตรค้างเกินเวลา กรุณาติดต่อผู้ดูแล',409);}
  const s=await stripe(env,'checkout/sessions',JSON.parse(c.session_params),'mart-card-create-'+c.id);
- if(!ownsCardSession(s,c,row))fail('รายการบันทึกบัตรไม่ตรงกับบัญชี',409);
+ if(!ownsCardSession(env,s,c,row))fail('รายการบันทึกบัตรไม่ตรงกับบัญชี',409);
  await q(env,'UPDATE billing_cards SET session_id=? WHERE id=?',s.id,c.id).run();return s;
 }
 async function settleCard(env,row){
@@ -336,13 +341,13 @@ async function settleCard(env,row){
  if(s.status!=='complete')return;
  if(!/^seti_[A-Za-z0-9]+$/.test(s.setup_intent||'')){await cardReview(env,c);return;}
  const intent=await stripe(env,'setup_intents/'+s.setup_intent+'?expand[]=payment_method'),pm=intent.payment_method;
- if(intent.status!=='succeeded'||intent.livemode!==false||intent.customer!==row.customer_id||intent.metadata?.mart_card_id!==c.id||intent.metadata?.subscription_id!==c.subscription_id||pm?.customer!==row.customer_id||pm?.livemode!==false||pm?.type!=='card'||!/^pm_[A-Za-z0-9]+$/.test(pm?.id||'')){await cardReview(env,c);return;}
+ if(intent.status!=='succeeded'||!matchesMode(env,intent.livemode)||intent.customer!==row.customer_id||intent.metadata?.mart_card_id!==c.id||intent.metadata?.subscription_id!==c.subscription_id||pm?.customer!==row.customer_id||!matchesMode(env,pm?.livemode)||pm?.type!=='card'||!/^pm_[A-Za-z0-9]+$/.test(pm?.id||'')){await cardReview(env,c);return;}
  const sub=await stripe(env,'subscriptions/'+c.subscription_id);
- if(c.subscription_id!==row.subscription_id||sub.customer!==row.customer_id||sub.livemode!==false||sub.metadata?.app!=='lync-to-mart'||sub.metadata?.user_id!==row.user_id||!['active','past_due','trialing'].includes(sub.status)||sub.schedule||sub.pending_update||sub.pause_collection){await cardReview(env,c);return;}
+ if(c.subscription_id!==row.subscription_id||sub.customer!==row.customer_id||!matchesMode(env,sub.livemode)||sub.metadata?.app!=='lync-to-mart'||sub.metadata?.user_id!==row.user_id||!['active','past_due','trialing'].includes(sub.status)||sub.schedule||sub.pending_update||sub.pause_collection){await cardReview(env,c);return;}
  // Retry after a lost response observes the already-applied method, without changing price or renewal consent.
  if(sub.default_payment_method!==pm.id){
   const updated=await stripe(env,'subscriptions/'+c.subscription_id,{default_payment_method:pm.id},'mart-card-apply-'+c.id);
-  if(updated.customer!==row.customer_id||updated.livemode!==false||updated.default_payment_method!==pm.id)fail('ยังยืนยันการเปลี่ยนบัตรไม่ได้ กรุณาตรวจสอบสถานะอีกครั้ง',502);
+  if(updated.customer!==row.customer_id||!matchesMode(env,updated.livemode)||updated.default_payment_method!==pm.id)fail('ยังยืนยันการเปลี่ยนบัตรไม่ได้ กรุณาตรวจสอบสถานะอีกครั้ง',502);
  }
  await q(env,"UPDATE billing_cards SET status='applied',updated_at=? WHERE id=?",now(),c.id).run();
 }

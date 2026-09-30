@@ -129,7 +129,7 @@ async function handle(req,env,ctx){
   if(p==='/api/account/sessions'&&method==='GET'){const row=await query(env,'SELECT COUNT(*) AS active FROM sessions WHERE user_id=? AND expires>?',user.id,now()).first();return json({active:row.active,others:Math.max(0,row.active-1)});}
   if(p==='/api/account/logout-others'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];await query(env,'DELETE FROM sessions WHERE user_id=? AND token_hash<>?',user.id,await hash(token)).run();return json({ok:true});}
   if(p==='/api/account/password'&&method==='POST'){await changePassword(env,user,await body(req));return json({ok:true},200,{'Set-Cookie':`mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${url.protocol==='https:'?'; Secure':''}`});}
-  if(p==='/api/me'&&method==='GET'){const shops=await teamShops(env,user);return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
+  if(p==='/api/me'&&method==='GET'){const shops=await teamShops(env,user);return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,environment:env.APP_ENV,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
   if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
   if(p==='/api/shops'&&method==='POST'){

@@ -15,8 +15,8 @@ export function productionPreflight(config,staging){
  require(db?.database_id!==staging.d1_databases?.[0]?.database_id,'D1 Production ต้องแยกจาก Staging');
  require(media?.bucket_name==='lync-to-mart-production-media'&&media.bucket_name!==staging.r2_buckets?.[0]?.bucket_name,'R2 Production ต้องแยกจาก Staging');
  require(v.SIGNUP_ENABLED==='false','รอบเตรียมระบบต้องปิดสมัครสาธารณะไว้ก่อน');
- require(v.BILLING_ENABLED==='false','ยังห้ามเปิด Billing: โค้ดปัจจุบันรองรับเฉพาะ Stripe Sandbox');
- return {configuration_valid:errors.length===0,launch_ready:false,errors,remaining:['รองรับ Stripe Live และตรวจการรับ webhook ก่อนเปิดรับเงิน','ตั้ง Postmark Secret และทดสอบอีเมลบนโดเมนจริง','สร้างบัญชีเจ้าของและแต่งตั้งแอดมินสูงสุดในฐานข้อมูลใหม่','ยืนยันสำรองและกู้คืนข้อมูลบน Cloudflare จริง','ทดสอบสมัคร ร้านค้า ทีม และชำระเงินครบวงจรบน Production ก่อนเปิดสาธารณะ']};
+ require(v.BILLING_ENABLED==='false','คง Billing ปิดไว้จนตรวจการตั้งค่า Stripe Live ครบ');
+ return {configuration_valid:errors.length===0,launch_ready:false,errors,remaining:['ตั้งค่า Stripe Live และตรวจการรับ webhook ก่อนเปิดรับเงิน','ตั้ง Postmark Secret และทดสอบอีเมลบนโดเมนจริง','สร้างบัญชีเจ้าของและแต่งตั้งแอดมินสูงสุดในฐานข้อมูลใหม่','ยืนยันสำรองและกู้คืนข้อมูลบน Cloudflare จริง','ทดสอบสมัคร ร้านค้า ทีม และชำระเงินครบวงจรบน Production ก่อนเปิดสาธารณะ']};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{const result=productionPreflight(JSON.parse(readFileSync(process.argv[2]||'wrangler.production.example.jsonc','utf8')),JSON.parse(readFileSync('wrangler.jsonc','utf8')));console.log(JSON.stringify(result,null,2));process.exitCode=result.configuration_valid?0:1;}

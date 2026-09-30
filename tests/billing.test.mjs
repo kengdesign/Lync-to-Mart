@@ -6,30 +6,30 @@ import {billingReady,checkout,refreshBilling,cancelRenewal,verifySignature,amoun
 import {effectivePlan} from '../src/plans.mjs';
 import worker from '../src/worker.mjs';
 const now=()=>Math.floor(Date.now()/1000);
-async function fixture(t){
- const DB=database(),env={DB,APP_ENV:'staging',BILLING_ENABLED:'true',STRIPE_SECRET_KEY:'rk_test_fixture',STRIPE_WEBHOOK_SECRET:'whsec_fixture',STRIPE_VAT_RATE_ID:'txr_vat',STRIPE_TEST_EMAILS:'u@example.test'},user={id:'u',email:'u@example.test',plan_id:'free'};
+async function fixture(t,live=false){
+ const DB=database(),env={DB,APP_ENV:live?'production':'staging',BILLING_ENABLED:'true',STRIPE_SECRET_KEY:live?'rk_live_fixture':'rk_test_fixture',STRIPE_WEBHOOK_SECRET:'whsec_fixture',STRIPE_VAT_RATE_ID:'txr_vat',STRIPE_TEST_EMAILS:'u@example.test'},user={id:'u',email:'u@example.test',plan_id:'free'};
  for(const plan of Object.keys(amounts))for(const period of ['monthly','yearly'])env[`STRIPE_PRICE_${plan.toUpperCase()}_${period.toUpperCase()}`]=`price_${plan}_${period}`;
  await DB.prepare('INSERT INTO users VALUES(?,?,?,?)').bind(user.id,user.email,'hash','free').run();await DB.prepare('INSERT INTO sessions VALUES(?,?,?)').bind(await hash('token'),'u',now()+3600).run();
  t.after(()=>DB.close());
- let subscriptions=[],sessions={},calls=[],tax={active:true,inclusive:true,percentage:7,livemode:false},priceOverride={},failSession=false;
+ let subscriptions=[],sessions={},calls=[],tax={active:true,inclusive:true,percentage:7,livemode:live},priceOverride={},failSession=false;
  const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
- const price=id=>{const [,plan,period]=id.split('_');return {id,active:true,livemode:false,currency:'thb',unit_amount:amounts[plan][period],tax_behavior:'inclusive',recurring:{interval:period==='monthly'?'month':'year',interval_count:1},...priceOverride};};
+ const price=id=>{const [,plan,period]=id.split('_');return {id,active:true,livemode:live,currency:'thb',unit_amount:amounts[plan][period],tax_behavior:'inclusive',recurring:{interval:period==='monthly'?'month':'year',interval_count:1},...priceOverride};};
  globalThis.fetch=async(url,opts)=>{
  const parsed=new URL(url),path=parsed.pathname.replace('/v1/',''),values=opts.body?Object.fromEntries(new URLSearchParams(opts.body)):null;
  assert.equal(parsed.hostname,'api.stripe.com');calls.push({path,values,key:opts.headers['Idempotency-Key']});let data;
  if(path.startsWith('prices/'))data=price(path.slice(7));
  else if(path.startsWith('tax_rates/'))data=tax;
- else if(path==='customers')data={id:'cus_u',livemode:false};
+ else if(path==='customers')data={id:'cus_u',livemode:live};
  else if(path==='subscriptions')data={data:subscriptions,has_more:false};
  else if(path==='checkout/sessions'){
- let session=Object.values(sessions).find(x=>x.key===opts.headers['Idempotency-Key']);if(!session){session={id:'cs_test_'+(Object.keys(sessions).length+1),url:'https://checkout.stripe.com/c/pay/test',status:'open',livemode:false,key:opts.headers['Idempotency-Key'],values};sessions[session.id]=session;}if(failSession){failSession=false;throw Error('lost response');}data=session;
+ let session=Object.values(sessions).find(x=>x.key===opts.headers['Idempotency-Key']);if(!session){session={id:'cs_test_'+(Object.keys(sessions).length+1),url:'https://checkout.stripe.com/c/pay/test',status:'open',livemode:live,key:opts.headers['Idempotency-Key'],values};sessions[session.id]=session;}if(failSession){failSession=false;throw Error('lost response');}data=session;
  }else if(path.endsWith('/expire')){data=sessions[path.split('/')[2]];data.status='expired';}
  else if(path.startsWith('checkout/sessions/'))data=sessions[path.split('/')[2]];
  else if(path.startsWith('subscriptions/')){data=subscriptions.find(s=>s.id===path.split('/')[1]);data.cancel_at_period_end=values.cancel_at_period_end==='true';}
  else throw Error('Unexpected '+path);
  return Response.json(data);
  };
- const sub=(extra={})=>({id:'sub_u',customer:'cus_u',livemode:false,status:'active',created:now(),metadata:{app:'lync-to-mart',user_id:'u'},items:{data:[{quantity:1,price:price('price_starter_monthly'),current_period_end:now()+86400}]},latest_invoice:{status:'paid',customer:'cus_u'},cancel_at_period_end:false,...extra});
+ const sub=(extra={})=>({id:'sub_u',customer:'cus_u',livemode:live,status:'active',created:now(),metadata:{app:'lync-to-mart',user_id:'u'},items:{data:[{quantity:1,price:price('price_starter_monthly'),current_period_end:now()+86400}]},latest_invoice:{status:'paid',customer:'cus_u'},cancel_at_period_end:false,...extra});
  return {DB,env,user,price,sub,calls,sessions,setSubs:s=>subscriptions=s,setTax:v=>tax={...tax,...v},setPrice:v=>priceOverride=v,loseResponse:()=>failSession=true};
 }
 async function signature(raw,secret,t=now()){
@@ -37,7 +37,7 @@ async function signature(raw,secret,t=now()){
 }
 async function webhook(env,event,header){const raw=JSON.stringify(event);return worker.fetch(new Request('https://mart.test/api/billing/webhook',{method:'POST',headers:{'stripe-signature':header||await signature(raw,env.STRIPE_WEBHOOK_SECRET)},body:raw}),env,{});}
 const event=(id,extra={})=>({id,type:'invoice.paid',livemode:false,data:{object:{customer:'cus_u'}},...extra});
-test('Checkout is sandbox-only, validates price/tax, ignores client amount and reuses open session',async t=>{
+test('Staging checkout rejects Live keys, validates price/tax, ignores client amount and reuses open session',async t=>{
  const f=await fixture(t),{env,user,DB}=f;assert.equal(billingReady(env),true);assert.equal(billingReady({...env,APP_ENV:'production'}),false);assert.equal(billingReady({...env,STRIPE_SECRET_KEY:'sk_live_no'}),false);
  await assert.rejects(checkout(env,{...user,email:'other@example.test'},{plan:'starter',period:'monthly'},'https://mart.test'),e=>e.status===403);
  await assert.rejects(checkout(env,user,{plan:'owner',period:'monthly'},'https://mart.test'),e=>e.status===400);
@@ -77,4 +77,19 @@ test('webhook retry after network failure, signature tampering and origin/sessio
  const f=await fixture(t),{env,user,DB}=f;await checkout(env,user,{plan:'starter',period:'monthly'},'https://mart.test');const fetch=globalThis.fetch;globalThis.fetch=async()=>{throw Error('network');};assert.equal((await webhook(env,event('evt_retry'))).status,502);assert.equal(await DB.prepare("SELECT id FROM billing_events WHERE id='evt_retry'").first(),null);globalThis.fetch=fetch;f.setSubs([f.sub()]);assert.equal((await webhook(env,event('evt_retry'))).status,200);
  const raw='{"ok":true}';const sig=await signature(raw,'secret');assert.equal(await verifySignature(raw,sig,'secret'),true);assert.equal(await verifySignature(raw+' ',sig,'secret'),false);assert.equal(await verifySignature(raw,await signature(raw,'secret',now()-301),'secret'),false);
  const req=(headers={})=>new Request('https://mart.test/api/billing/checkout',{method:'POST',headers,body:JSON.stringify({plan:'starter',period:'monthly'})});assert.equal((await worker.fetch(req(),env,{})).status,403);assert.equal((await worker.fetch(req({Origin:'https://mart.test'}),env,{})).status,401);assert.equal((await worker.fetch(req({Origin:'https://evil.test',Cookie:'mart_session=token'}),env,{})).status,403);assert.equal((await worker.fetch(req({Origin:'https://mart.test',Cookie:'mart_session=token; mart_swap=swap'}),env,{})).status,403);
+});
+
+for(const period of ['monthly','yearly'])test(`Production ${period}: Live checkout, signed webhook, cancellation and mode isolation`,async t=>{
+ const f=await fixture(t,true),{env,user,DB}=f;delete env.STRIPE_TEST_EMAILS;
+ assert.equal(billingReady(env),true);
+ for(const invalid of [{APP_ENV:'development'},{STRIPE_SECRET_KEY:'sk_test_fixture'},{BILLING_ENABLED:'false'}])assert.equal(billingReady({...env,...invalid}),false);
+ for(const plan of Object.keys(amounts))await checkout(env,user,{plan,period},'https://mart.test');
+ f.setSubs([f.sub({items:{data:[{quantity:1,price:f.price('price_brand_'+period),current_period_end:now()+86400}]}})]);
+ assert.equal((await webhook(env,event('evt_wrong_mode'))).status,400);
+ assert.equal((await webhook(env,event('evt_live_ok',{livemode:true}))).status,200);
+ assert.equal((await DB.prepare('SELECT plan_id FROM users').first()).plan_id,'brand');
+ const status=await cancelRenewal(env,user,{cancel:true});assert.equal(status.mode,'live');assert.equal(status.eligible,true);assert.equal(status.subscription.cancel_at_period_end,true);
+ assert.equal((await cancelRenewal(env,user,{cancel:false})).subscription.cancel_at_period_end,false);
+ f.setSubs([f.sub({livemode:false})]);await assert.rejects(refreshBilling(env,user),e=>e.status===502);
+ f.setSubs([f.sub({latest_invoice:{status:'paid',customer:'cus_u',livemode:false}})]);await assert.rejects(refreshBilling(env,user),e=>e.status===502);
 });
