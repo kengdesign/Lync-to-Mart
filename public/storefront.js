@@ -1,4 +1,4 @@
-import {connectProductLightbox} from './product-lightbox.js?v=1';
+import {connectProductLightbox} from './product-lightbox.js?v=swipe1';
 connectProductLightbox();
 let controller,sequence=0,timer,composing=false,searchHistory=false;
 async function navigate(target,{historyMode='push',focusSearch=false,scroll=false}={}){

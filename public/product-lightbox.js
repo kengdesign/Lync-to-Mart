@@ -13,6 +13,21 @@ export function connectProductLightbox(doc=document){
   let index=Math.max(0,links.indexOf(link));
   const img=dialog.querySelector('img'),status=dialog.querySelector('[role="status"]'),error=dialog.querySelector('[data-error]');
   function show(){const item=images[index];error.hidden=true;img.hidden=false;img.alt=item.alt;img.src=item.src;status.textContent=`รูป ${index+1} / ${images.length}`;dialog.querySelector('[data-original]').href=item.src;dialog.querySelector('[data-prev]').disabled=index===0;dialog.querySelector('[data-next]').disabled=index===images.length-1;}
+  const stage=dialog.querySelector('.lightbox-stage');
+  let gesture=null;
+  stage.addEventListener('touchstart',e=>{
+   gesture=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY,id:e.touches[0].identifier}:null;
+  },{passive:true});
+  stage.addEventListener('touchmove',e=>{if(e.touches.length!==1)gesture=null;},{passive:true});
+  stage.addEventListener('touchcancel',()=>{gesture=null;},{passive:true});
+  stage.addEventListener('touchend',e=>{
+   const start=gesture;gesture=null;if(!start||e.touches.length)return;
+   const touch=[...e.changedTouches].find(t=>t.identifier===start.id);if(!touch)return;
+   const dx=touch.clientX-start.x,dy=touch.clientY-start.y;
+   // Ignore scrolling, taps and pinch zoom; change once on release.
+   if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5)return;
+   dialog.querySelector(dx<0?'[data-next]':'[data-prev]').click();
+  },{passive:true});
   img.onerror=()=>{img.hidden=true;error.hidden=false;};
   dialog.querySelector('[data-prev]').onclick=()=>{if(index>0){index--;show();}};
   dialog.querySelector('[data-next]').onclick=()=>{if(index<images.length-1){index++;show();}};
