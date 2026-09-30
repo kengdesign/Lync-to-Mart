@@ -2,7 +2,7 @@ import {mountTeam,mountTeamInvite} from './team.js?v=teamhistory1';
 import {createCatalogViews} from './catalog-view.js';
 const catalogViews=createCatalogViews();
 import {mountBillingNotice} from './billing-notice.js?v=1';
-import {mountBilling} from './billing.js?v=11';
+import {mountBilling} from './billing.js?v=12';
 import {mountRegistration} from './registration.js';
 import {mountShowcaseEditor} from './showcase-editor.js?v=1';
 import {mountSellerHelp} from './seller-help.js?v=myaccount1';

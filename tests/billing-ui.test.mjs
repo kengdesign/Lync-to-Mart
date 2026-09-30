@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {JSDOM} from 'jsdom';import {mountBilling} from '../public/billing.js';
 test('billing panel hides checkout until configured, quotes selected term, and shows paid subscription separately',async t=>{
  const dom=new JSDOM('<section id="billing"></section>',{url:'https://mart.test/?billing=success'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section');
- await mountBilling({root,api:async()=>({ready:false,eligible:true})});assert.equal(root.querySelector('[data-checkout]'),null);assert.match(root.textContent,/ยังตั้งค่า Stripe ไม่ครบ/);
+ await mountBilling({root,api:async()=>({ready:false,eligible:true})});assert.equal(root.querySelector('[data-checkout]'),null);assert.match(root.textContent,/ระบบชำระเงินยังไม่พร้อม/);
  await mountBilling({root,api:async()=>({ready:true,eligible:false})});assert.equal(root.querySelector('[data-checkout]'),null);
  const items=[{id:'starter',monthly:19900,yearly:199000},{id:'growth',monthly:49900,yearly:499000},{id:'brand',monthly:99000,yearly:990000}];
  await mountBilling({root,items,api:async()=>({ready:true,eligible:true})});assert.match(root.querySelector('[data-billing-total]').textContent,/199/);const period=root.querySelector('[data-billing-period]');period.value='yearly';period.dispatchEvent(new dom.window.Event('change'));assert.match(root.querySelector('[data-billing-total]').textContent,/1,990/);assert.match(root.textContent,/VAT 7%/);assert.match(root.querySelector('[data-billing-message]').textContent,/ตรวจสอบสถานะ/);
@@ -12,7 +12,7 @@ test('checkout error is visible, clears stale messages and re-enables controls f
  const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);
  const root=dom.window.document.querySelector('section');let reject;
  await mountBilling({root,currentPlan:{id:'free',name:'Free'},items:[{id:'starter',monthly:19900,yearly:199000}],api:async()=>({ready:true,eligible:true}),send:()=>new Promise((_,r)=>reject=r)});
- assert.match(root.textContent,/ยังไม่มีสมาชิกแบบชำระเงิน/);assert.equal(root.querySelector('[data-renewal]'),null);
+ assert.match(root.textContent,/ยังไม่มีแพ็กเกจที่ชำระเงิน/);assert.equal(root.querySelector('[data-renewal]'),null);
  const button=root.querySelector('[data-checkout]');button.click();assert.equal(button.disabled,true);assert.match(root.querySelector('[data-billing-message]').textContent,/กำลังตรวจสอบ/);
  reject(Error('Price ยังไม่ได้ตั้งรวมภาษี'));await new Promise(r=>setTimeout(r,0));assert.equal(button.disabled,false);assert.match(root.querySelector('[data-billing-message]').textContent,/Price/);assert.equal(dom.window.document.activeElement,root.querySelector('[data-billing-message]'));
 });
@@ -56,7 +56,7 @@ test('downgrade confirms next-period price, preserves current plan and exposes c
  let data={ready:true,eligible:true,subscription:{status:'active',plan:'brand',period:'monthly',paid_until:quote.effective_at,cancel_at_period_end:false}};
  await mountBilling({root,items:[{id:'starter',monthly:19900},{id:'growth',monthly:49900},{id:'brand',monthly:99000}],api:async()=>data,send:async(path,input)=>{calls.push({path,input});if(path==='/billing/downgrade-preview')return quote;data={...data,downgrade:{...quote,status:'scheduled'}};return data;}});
  root.querySelector('[data-downgrade-preview]').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls.length,1);assert.match(root.querySelector('[data-downgrade-quote]').textContent,/วันนี้ไม่เรียกเก็บเงินเพิ่ม/);assert.match(root.querySelector('[data-downgrade-quote]').textContent,/฿499/);
- root.querySelector('[data-downgrade-confirm]').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls[1].path,'/billing/downgrade');assert.deepEqual(calls[1].input,quote);assert.ok(root.querySelector('[data-downgrade-cancel]'));assert.equal(root.querySelector('[data-renewal]'),null);assert.equal(root.querySelector('[data-upgrade-preview]'),null);assert.match(root.textContent,/แพ็กเกจที่ชำระ: brand/);
+ root.querySelector('[data-downgrade-confirm]').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls[1].path,'/billing/downgrade');assert.deepEqual(calls[1].input,quote);assert.ok(root.querySelector('[data-downgrade-cancel]'));assert.equal(root.querySelector('[data-renewal]'),null);assert.equal(root.querySelector('[data-upgrade-preview]'),null);assert.match(root.textContent,/ยืนยันการชำระเงินแล้ว · Brand/);
 });
 test('canceled renewal must be resumed explicitly before scheduling a paid downgrade',async t=>{
  const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section');
@@ -70,4 +70,16 @@ test('card setup panel resumes pending setup and never treats a return URL as su
  await mountBilling({root,api:async()=>data});assert.match(root.querySelector('[data-card-update]').textContent,/กลับไปบันทึกบัตร/);assert.ok(root.querySelector('[data-card-cancel]'));assert.match(root.querySelector('[data-billing-message]').textContent,/ยังไม่ยืนยันว่าเปลี่ยนบัตรสำเร็จ/);
  data.card_update.status='review';await mountBilling({root,api:async()=>data});assert.equal(root.querySelector('[data-card-update]'),null);assert.match(root.textContent,/รายการเปลี่ยนบัตรต้องให้ผู้ดูแลตรวจสอบ/);
  data.card_update=null;data.downgrade={status:'scheduled',plan:'growth',effective_at:1800000000,amount:49900,period:'monthly'};await mountBilling({root,api:async()=>data});assert.equal(root.querySelector('[data-card-update]'),null);
+});
+
+test('confirmed paid return shows current entitlement and cancellation without payment prompt',async t=>{
+ const dom=new JSDOM('<section></section>',{url:'https://mart.test/?billing=success'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);
+ const root=dom.window.document.querySelector('section');
+ await mountBilling({root,currentPlan:{id:'free'},api:async()=>({ready:true,eligible:true,mode:'live',effective_plan:{id:'starter',name:'Starter',promotion_plan:'free'},subscription:{status:'active',plan:'starter',period:'monthly',paid_until:Math.floor(Date.now()/1000)+86400,cancel_at_period_end:true}})});
+ assert.match(root.querySelector('h2').textContent,/Starter/);
+ assert.match(root.textContent,/ยกเลิกการต่ออายุแล้ว/);
+ assert.match(root.textContent,/ยังใช้แพ็กเกจที่ชำระได้จนจบรอบ/);
+ assert.doesNotMatch(root.textContent,/พร้อมชำระเงิน|มีสิทธิ์โปรโมชั่น|กลับจาก Stripe แล้ว กรุณากด/);
+ assert.equal(root.querySelector('[data-checkout]'),null);
+ assert.match(root.querySelector('[data-billing-message]').textContent,/ไม่ต้องชำระซ้ำ/);
 });

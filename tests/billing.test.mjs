@@ -93,3 +93,18 @@ for(const period of ['monthly','yearly'])test(`Production ${period}: Live checko
  f.setSubs([f.sub({livemode:false})]);await assert.rejects(refreshBilling(env,user),e=>e.status===502);
  f.setSubs([f.sub({latest_invoice:{status:'paid',customer:'cus_u',livemode:false}})]);await assert.rejects(refreshBilling(env,user),e=>e.status===502);
 });
+
+test('Free promotion cannot suppress paid access, including after renewal cancellation',async t=>{
+ const f=await fixture(t,true),{env,user,DB}=f;
+ await DB.prepare("INSERT INTO member_controls(user_id,override_plan) VALUES('u','free')").run();
+ await checkout(env,user,{plan:'starter',period:'monthly'},'https://mart.test');
+ f.setSubs([f.sub()]);await refreshBilling(env,user);
+ assert.equal((await effectivePlan(env,user)).id,'starter');
+ await cancelRenewal(env,user,{cancel:true});
+ assert.equal((await effectivePlan(env,user)).id,'starter');
+ await DB.prepare("UPDATE member_controls SET override_plan='brand' WHERE user_id='u'").run();
+ assert.equal((await effectivePlan(env,user)).id,'brand');
+ await DB.prepare("UPDATE member_controls SET override_plan='free' WHERE user_id='u'").run();
+ await DB.prepare('UPDATE billing_accounts SET paid_until=?').bind(now()-1).run();
+ assert.equal((await effectivePlan(env,user)).id,'free');
+});

@@ -1,4 +1,5 @@
 // Strict environment isolation: Staging uses Test, Production uses Live.
+import {effectivePlan} from './plans.mjs';
 import {addBillingMonths,upgradePolicy} from './billing-policy.mjs';
 import {recoveryLimit} from './password-recovery.mjs';
 import {boundedHTML} from './import.mjs';
@@ -71,7 +72,7 @@ async function reconcile(env,row){
  ]);return account(env,row.user_id);
 }
 export async function billingStatus(env,user){
- const row=await account(env,user.id);return {ready:billingReady(env),eligible:eligible(env,user),mode:billingMode(env),card_update:await cardUpdateStatus(env,user.id),downgrade:await downgradeStatus(env,user.id),upgrade:await upgradeStatus(env,user.id),subscription:row?.subscription_id?{status:row.status,plan:row.plan_id,period:row.period,paid_until:row.paid_until,cancel_at_period_end:!!row.cancel_at_period_end,updated_at:row.updated_at}:null};
+ const row=await account(env,user.id);return {effective_plan:await effectivePlan(env,user),ready:billingReady(env),eligible:eligible(env,user),mode:billingMode(env),card_update:await cardUpdateStatus(env,user.id),downgrade:await downgradeStatus(env,user.id),upgrade:await upgradeStatus(env,user.id),subscription:row?.subscription_id?{status:row.status,plan:row.plan_id,period:row.period,paid_until:row.paid_until,cancel_at_period_end:!!row.cancel_at_period_end,updated_at:row.updated_at}:null};
 }
 export async function checkout(env,user,input,origin){
  allowed(env,user);origin=env.RECOVERY_ORIGIN||origin;if(!await recoveryLimit(env,'billing:'+user.id,60))fail('กรุณารอ 15 นาทีแล้วลองใหม่',429);const {plan,period}=input;if(!Object.hasOwn(amounts,plan)||!Object.hasOwn(amounts[plan],period))fail('เลือกแพ็กเกจและรอบชำระให้ถูกต้อง');
