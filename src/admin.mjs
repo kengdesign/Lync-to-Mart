@@ -1,7 +1,8 @@
+import {recoveryLimit} from './password-recovery.mjs';
 import {teamList,teamLimit} from './team.mjs';
 import {adminBackup} from './admin-backup.mjs';
 import {adminBilling} from './admin-billing.mjs';
-import {billingReady} from './billing.mjs';
+import {billingReady,checkBillingConfiguration} from './billing.mjs';
 import {planExpression,planBindings} from './plans.mjs';
 // Mart authorization is independent of WordPress and subscription plans.
 export async function adminRole(env,user){
@@ -17,6 +18,11 @@ export async function adminData(env,user,url){
  const role=await adminRole(env,user);
  if(!role)throw Object.assign(new Error('บัญชีนี้ไม่มีสิทธิ์เข้าถึงแอดมิน Mart'),{status:403});
  const view=url.searchParams.get('view')||'overview';
+ if(view==='billing-check'){
+  if(role!=='owner')throw Object.assign(new Error('เฉพาะแอดมินสูงสุดเท่านั้น'),{status:403});
+  if(!await recoveryLimit(env,'stripe-check:'+user.id,6))throw Object.assign(new Error('ตรวจบ่อยเกินไป กรุณารอ 15 นาที'),{status:429});
+  return checkBillingConfiguration(env);
+ }
  if(view==='team'){
   const shop=await env.DB.prepare('SELECT id,name,owner_id FROM shops WHERE id=?').bind(url.searchParams.get('shop')||'').first();
   if(!shop)throw Object.assign(new Error('ไม่พบร้านค้า'),{status:404});

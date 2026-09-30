@@ -381,3 +381,20 @@ export async function cancelCardUpdate(env,user){
   await q(env,"UPDATE billing_cards SET status='canceled',updated_at=? WHERE id=?",now(),c.id).run();return {ok:true};
  });
 }
+
+// Diagnostic requests use only fixed GET endpoints; never enable checkout or mutate Stripe.
+export async function checkBillingConfiguration(env){
+ const probe={...env,BILLING_ENABLED:'true'};
+ const checks=[];
+ const add=(name,ok,message)=>checks.push({name,ok,message});
+ const mode=billingMode(env);
+ add('API Key',!!mode&&new RegExp('^(rk|sk)_'+mode+'_').test(env.STRIPE_SECRET_KEY||''),'ตรวจรูปแบบคีย์ให้ตรงกับ '+(mode||'environment ที่รองรับ'));
+ add('Webhook Secret',/^whsec_.+/.test(env.STRIPE_WEBHOOK_SECRET||''),'ตรวจว่ามี Secret เท่านั้น ยังไม่ยืนยันการส่ง Webhook หรือลายเซ็น');
+ if(billingReady(probe)){
+  for(const plan of Object.keys(amounts))for(const period of ['monthly','yearly']){
+   try{await validatedPrice(probe,plan,period);add(plan+' / '+period,true,'ราคา รอบชำระ THB และ VAT รวม 7% ถูกต้อง');}
+   catch(e){add(plan+' / '+period,false,e.message);}
+  }
+ }else add('การตั้งค่า',false,'ตรวจ APP_ENV, API Key, Webhook Secret, Tax Rate ID และ Price ID ทั้ง 6 ค่า');
+ return {mode,billing_enabled:env.BILLING_ENABLED==='true',checks,configuration_ok:checks.every(c=>c.ok),webhook_verified:false,note:'ตรวจแบบอ่านอย่างเดียว ไม่สร้างลูกค้า ไม่สร้างรายการชำระเงิน และไม่ตรวจสิทธิ์ Write หรือการส่ง Webhook'};
+}
