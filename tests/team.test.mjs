@@ -116,3 +116,19 @@ test('store and campaign scopes are independent; team uploads belong to owner qu
   assert.equal((await call('/shops/shop-a','PUT',{name:'Updated',published:false},'staff','shop-a')).status,403);
  }finally{f.close();}
 });
+test('team history labels actions and resolves only this owner shops and members',async()=>{
+ const f=await fixture(),{DB,call,invite}=f;
+ try{
+  await invite();
+  const member=(await (await call('/team')).json()).members[0];
+  await call('/team','POST',{action:'revoke',id:member.id});
+  for(const [owner,action,target] of [['owner','PUT /api/shops/shop-a/showcase','shop-a'],['owner','DELETE /api/products/item','shop-a'],['owner','PUT /api/shops/shop-z','shop-z'],['other','POST /api/media','shop-z']])await DB.prepare('INSERT INTO team_audit(owner_id,actor_id,action,target) VALUES(?,?,?,?)').bind(owner,'staff',action,target).run();
+  const {audit}=await (await call('/team')).json();
+  assert.equal(audit.find(a=>a.action==='revoke').target_label,'staff@example.test');
+  assert.equal(audit.find(a=>a.action.endsWith('/showcase')).label,'ปรับแคมเปญ / ส่วนแสดงสินค้า');
+  assert.equal(audit.find(a=>a.action.startsWith('DELETE')).target_label,'shop-a');
+  assert.equal(audit.find(a=>a.action.startsWith('DELETE')).label,'ย้ายสินค้าลงถังขยะ');
+  assert.equal(audit.find(a=>a.target==='shop-z').target_label,'ร้านที่ไม่มีแล้ว');
+  assert.ok(!audit.some(a=>a.action==='POST /api/media'));
+ }finally{f.close();}
+});

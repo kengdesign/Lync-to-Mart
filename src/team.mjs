@@ -114,10 +114,31 @@ export async function manageTeam(req,env,actor,data){
  }catch{await q(env,"UPDATE shop_team SET status='revoked',token_hash=NULL WHERE token_hash=?",digest).run();fail('ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่',503);}
  await teamAudit(env,actor.id,actor.id,'invite',email);return {ok:true};
 }
+const auditLabels={invite:'ส่งคำเชิญ',accept:'รับคำเชิญ',revoke:'ถอนสิทธิ์ / คำเชิญ',permissions:'แก้ไขสิทธิ์'};
+function auditDescription(row){
+ const routes=[
+  [/^POST \/api\/shops\/[^/]+\/products$/,'เพิ่มสินค้า'],
+  [/^PUT \/api\/products\/[^/]+$/,'แก้ไขข้อมูล / สถานะสินค้า'],
+  [/^DELETE \/api\/products\/[^/]+$/,'ย้ายสินค้าลงถังขยะ'],
+  [/^POST \/api\/trash\/[^/]+\/restore$/,'กู้คืนสินค้า'],
+  [/^PUT \/api\/products\/[^/]+\/featured$/,'ปรับสินค้าแนะนำ'],
+  [/^PUT \/api\/shops\/[^/]+\/showcase$/,'ปรับแคมเปญ / ส่วนแสดงสินค้า'],
+  [/^PUT \/api\/shops\/[^/]+$/,'ปรับแต่งหน้าร้าน'],
+  [/^POST \/api\/shops\/[^/]+\/bulk-status$/,'เปลี่ยนสถานะสินค้าหลายรายการ'],
+  [/^POST \/api\/shops\/[^/]+\/bulk-category$/,'จัดหมวดหมู่สินค้าหลายรายการ'],
+  [/^POST \/api\/shops\/[^/]+\/duplicate$/,'ตรวจสอบสินค้าซ้ำ'],
+  [/^POST \/api\/import$/,'อ่านข้อมูลจากลิงก์สินค้า'],
+  [/^POST \/api\/media\/import$/,'นำเข้ารูปภาพ'],
+  [/^POST \/api\/media\/video$/,'เพิ่มวิดีโอ'],
+  [/^POST \/api\/media$/,'อัปโหลดสื่อ']
+ ];
+ return {...row,label:auditLabels[row.action]||routes.find(([pattern])=>pattern.test(row.action))?.[1]||'ดำเนินการในร้าน',
+  target_label:auditLabels[row.action]?(row.action==='invite'||row.action==='accept'?row.target:row.member_email||'สมาชิกที่ไม่มีแล้ว'):(row.shop_name||'ร้านที่ไม่มีแล้ว')};
+}
 export async function teamList(env,actor){
  const plan=await effectivePlan(env,actor),limit=teamLimit(plan.id),allowed=new Set((await seats(env,actor.id,limit)).map(r=>r.id));
  const rows=(await q(env,"SELECT id,email,status,grants_json,expires FROM shop_team WHERE owner_id=? AND status<>'revoked' ORDER BY created_at,rowid",actor.id).all()).results;
- return {limit,members:rows.map(r=>({...r,grants:JSON.parse(r.grants_json),enabled:allowed.has(r.id)})),shops:(await q(env,'SELECT id,name FROM shops WHERE owner_id=? ORDER BY created_at',actor.id).all()).results,audit:(await q(env,'SELECT a.action,a.target,a.created_at,u.email AS actor FROM team_audit a LEFT JOIN users u ON u.id=a.actor_id WHERE a.owner_id=? ORDER BY a.id DESC LIMIT 50',actor.id).all()).results};
+ return {limit,members:rows.map(r=>({...r,grants:JSON.parse(r.grants_json),enabled:allowed.has(r.id)})),shops:(await q(env,'SELECT id,name FROM shops WHERE owner_id=? ORDER BY created_at',actor.id).all()).results,audit:(await q(env,`SELECT a.action,a.target,a.created_at,u.email AS actor,s.name AS shop_name,m.email AS member_email FROM team_audit a LEFT JOIN users u ON u.id=a.actor_id LEFT JOIN shops s ON s.id=a.target AND s.owner_id=a.owner_id LEFT JOIN shop_team m ON m.id=a.target AND m.owner_id=a.owner_id WHERE a.owner_id=? ORDER BY a.id DESC LIMIT 50`,actor.id).all()).results.map(auditDescription)};
 }
 export async function invitation(env,token){
  if(typeof token!=='string'||! /^[a-f0-9]{64}$/.test(token))fail('คำเชิญไม่ถูกต้องหรือหมดอายุ',400);

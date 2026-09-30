@@ -1,4 +1,4 @@
-import {mountTeam,mountTeamInvite} from './team.js?v=team1';
+import {mountTeam,mountTeamInvite} from './team.js?v=teamhistory1';
 import {createCatalogViews} from './catalog-view.js';
 const catalogViews=createCatalogViews();
 import {mountBillingNotice} from './billing-notice.js?v=1';
