@@ -1,3 +1,5 @@
+import {connectProductLightbox} from './product-lightbox.js?v=1';
+connectProductLightbox();
 let controller,sequence=0,timer,composing=false,searchHistory=false;
 async function navigate(target,{historyMode='push',focusSearch=false,scroll=false}={}){
  if(!focusSearch)searchHistory=false;

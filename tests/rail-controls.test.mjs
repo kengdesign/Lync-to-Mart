@@ -9,7 +9,7 @@ test('rail controls follow overflow, scroll edges and replacement catalog nodes'
  w.ResizeObserver=class{observe(node){observed.push(node);}disconnect(){observed=[];}};
  const dimensions=(node,width,total,left=0)=>{Object.defineProperties(node,{clientWidth:{configurable:true,value:width},scrollWidth:{configurable:true,value:total}});node.scrollLeft=left;};
  let rail=w.document.getElementById('rail');dimensions(rail,400,400);
- w.eval(await readFile(new URL('../public/storefront.js',import.meta.url),'utf8'));
+ w.eval((await readFile(new URL('../public/product-lightbox.js',import.meta.url),'utf8')).replace('export function','function')+'\n'+(await readFile(new URL('../public/storefront.js',import.meta.url),'utf8')).replace(/^import .*$/gm,''));
  const buttons=[...w.document.querySelectorAll('button')];
  assert.deepEqual(buttons.map(b=>b.disabled),[true,true]);
  dimensions(rail,400,1200);w.dispatchEvent(new w.Event('resize'));

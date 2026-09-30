@@ -7,7 +7,7 @@ test('search waits for composition and groups typing history while retaining ori
  const dom=new JSDOM(html,{url:'https://example.com/shop/test',runScripts:'outside-only'}),w=dom.window;
  let callback,requests=0;w.setTimeout=fn=>{callback=fn;return 1;};w.clearTimeout=()=>{callback=null;};
  w.fetch=async()=>{requests++;return {ok:true,text:async()=>html};};
- w.eval(await readFile(new URL('../public/storefront.js',import.meta.url),'utf8'));
+ w.eval((await readFile(new URL('../public/product-lightbox.js',import.meta.url),'utf8')).replace('export function','function')+'\n'+(await readFile(new URL('../public/storefront.js',import.meta.url),'utf8')).replace(/^import .*$/gm,''));
  let input=w.document.querySelector('input');
  input.dispatchEvent(new w.CompositionEvent('compositionstart',{bubbles:true}));input.value='ท';
  input.dispatchEvent(new w.InputEvent('input',{bubbles:true,isComposing:true}));
