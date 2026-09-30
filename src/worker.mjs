@@ -34,7 +34,7 @@ async function shopFor(env,id,user){const s=await query(env,'SELECT * FROM shops
 const planFor=effectivePlan;
 async function event(env,shop,product,kind){await query(env,'INSERT INTO events(id,shop_id,product_id,kind,day) VALUES(?,?,?,?,?)',crypto.randomUUID(),shop,product,kind,new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'})).run();}
 function html(content,status=200){return new Response(content,{status,headers:{'content-type':'text/html; charset=utf-8','Cache-Control':'no-store'}});}
-function page(title,content){return `<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} | Lync to Mart</title><link rel="stylesheet" href="/styles.css"></head><body class="store-body">${content}</body></html>`;}
+function page(title,content){return `<!doctype html><html lang="th"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=mart1"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} | Lync to Mart</title><link rel="stylesheet" href="/styles.css"></head><body class="store-body">${content}</body></html>`;}
 async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);

@@ -39,7 +39,7 @@ test('dashboard switches team workspace permissions and owner Brand creation quo
  const calls=[];w.fetch=async(path,opts)=>{calls.push({path,opts});return {ok:true,json:async()=>path==='/api/me'?{user:{id:'self',email:'self@example.test'},shops:[own,shared],plan:{id:'brand',name:'Brand',shops:3,products:500},capabilities:{}}:path.endsWith('/products')||path.endsWith('/stats')?[]:{}};};
  try{
   w.eval(source.replace(/^import .*$/gm,''));await tick();await tick();
-  w.document.querySelector('[data-tab="store"]').click();assert.equal(w.document.querySelectorAll('[data-create-shop]').length,2);
+  w.document.querySelector('[data-tab="store"]').click();await tick();await tick();assert.equal(w.document.querySelectorAll('[data-create-shop]').length,2);
   const picker=w.document.querySelector('#shop-picker');picker.value='shared';await picker.onchange({target:picker});
   assert.equal(w.document.querySelectorAll('[data-create-shop]').length,0);assert.equal(w.document.querySelector('#save-store').disabled,true);assert.equal(w.document.querySelector('[name=published]').disabled,true);
   assert.equal(w.document.querySelector('.nav [data-tab="team"]'),null);assert.equal(w.document.querySelector('.nav [data-tab="plans"]'),null);assert.ok(w.document.querySelector('.nav [data-tab="account"]'));assert.ok(w.document.querySelector('.nav [data-tab="help"]'));
