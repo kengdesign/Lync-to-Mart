@@ -39,7 +39,13 @@
     "APP_ENV": "production",
     "MAIL_FROM": "Lync to Mart <mart@lyncto.link>",
     "MAIL_REPLY_TO": "contact@iresauce.com",
-    "RECOVERY_ORIGIN": "https://mart.lyncto.link"
+    "RECOVERY_ORIGIN": "https://mart.lyncto.link",
+    "STRIPE_PRICE_STARTER_MONTHLY": "price_1UKWIFEqxKTIUYPO2JJndHn8",
+    "STRIPE_PRICE_GROWTH_MONTHLY": "price_1UKWIcEqxKTIUYPO5G3stpyn",
+    "STRIPE_PRICE_BRAND_MONTHLY": "price_1UKWIqEqxKTIUYPOJB438e6G",
+    "STRIPE_PRICE_STARTER_YEARLY": "price_1UKWJBEqxKTIUYPOyW5OmuiS",
+    "STRIPE_PRICE_GROWTH_YEARLY": "price_1UKWJNEqxKTIUYPONV0b7Ffv",
+    "STRIPE_PRICE_BRAND_YEARLY": "price_1UKWJhEqxKTIUYPOT7aTRYOH"
   },
   "preview_urls": false
 }
