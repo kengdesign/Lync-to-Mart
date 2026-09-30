@@ -33,7 +33,7 @@
   ],
   "vars": {
     "BILLING_ENABLED": "true",
-    "SIGNUP_ENABLED": "false",
+    "SIGNUP_ENABLED": "true",
     "IMPORT_HOSTS": "thaimart.com",
     "CHECKOUT_HOSTS": "thaimart.com",
     "APP_ENV": "production",

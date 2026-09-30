@@ -14,7 +14,8 @@ export function productionPreflight(config,staging){
  require(db?.database_name==='lync-to-mart-production'&&/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(db?.database_id||''),'ใส่ Database ID จริงของ D1 Production');
  require(db?.database_id!==staging.d1_databases?.[0]?.database_id,'D1 Production ต้องแยกจาก Staging');
  require(media?.bucket_name==='lync-to-mart-production-media'&&media.bucket_name!==staging.r2_buckets?.[0]?.bucket_name,'R2 Production ต้องแยกจาก Staging');
- require(v.SIGNUP_ENABLED==='false','รอบเตรียมระบบต้องปิดสมัครสาธารณะไว้ก่อน');
+ require(['false','true'].includes(v.SIGNUP_ENABLED),'SIGNUP_ENABLED ต้องเป็น true หรือ false');
+ if(v.SIGNUP_ENABLED==='true')require(Boolean(v.MAIL_FROM)&&Boolean(v.RECOVERY_ORIGIN),'เปิดสมัครต้องกำหนดผู้ส่งและโดเมนลิงก์ยืนยันอีเมล');
  require(['false','true'].includes(v.BILLING_ENABLED),'BILLING_ENABLED ต้องเป็น true หรือ false');
  if(v.BILLING_ENABLED==='true'){
   const keys=['STARTER','GROWTH','BRAND'].flatMap(plan=>['MONTHLY','YEARLY'].map(period=>'STRIPE_PRICE_'+plan+'_'+period));
