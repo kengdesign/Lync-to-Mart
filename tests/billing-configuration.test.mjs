@@ -12,6 +12,9 @@ test('owner diagnostic checks all Live prices while billing disabled, denies oth
  const check=role=>adminData(env,{id:role},new URL('https://mart.test/api/admin?view=billing-check'));
  for(const role of ['admin','support'])await assert.rejects(check(role),e=>e.status===403);assert.equal(calls,0);
  const result=await check('owner');assert.equal(result.configuration_ok,true);assert.equal(result.billing_enabled,false);assert.equal(result.webhook_verified,false);assert.equal(result.checks.length,8);assert.equal(calls,12);assert.doesNotMatch(JSON.stringify(result),/rk_live_private|whsec_private/);assert.equal(env.BILLING_ENABLED,'false');
+ assert.equal(result.last_processed_webhook,null);
+ await DB.prepare('INSERT INTO billing_events VALUES(?,?,?)').bind('evt_verified','invoice.paid',123).run();
+ const observed=await check('owner');assert.deepEqual({...observed.last_processed_webhook},{id:'evt_verified',type:'invoice.paid',processed_at:123});assert.equal(observed.webhook_verified,false);
  bad=true;assert.equal((await check('owner')).configuration_ok,false);
  env.STRIPE_SECRET_KEY='rk_test_wrong';calls=0;assert.equal((await check('owner')).configuration_ok,false);assert.equal(calls,0);
 });

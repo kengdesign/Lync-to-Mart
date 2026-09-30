@@ -10,7 +10,7 @@ export function renderAdminBilling({root,data}){
  const button=panel.querySelector('button'),result=panel.querySelector('[data-stripe-result]');
  button.onclick=async()=>{button.disabled=true;result.textContent='กำลังตรวจ Stripe กรุณารอสักครู่…';
   try{const response=await fetch('/api/admin?view=billing-check',{cache:'no-store'});const check=await response.json();if(!response.ok)throw Error(check.error||'ตรวจไม่สำเร็จ');
-   result.innerHTML=`<p><strong>${check.configuration_ok?'การตั้งค่าที่ตรวจผ่านครบ':'พบรายการที่ต้องแก้ไข'}</strong> · ${esc(check.mode)} · รับชำระเงิน: ${check.billing_enabled?'เปิด':'ปิด'}</p><ul>${check.checks.map(c=>`<li>${c.ok?'✓':'✗'} <strong>${esc(c.name)}</strong>: ${esc(c.message)}</li>`).join('')}</ul><p>${esc(check.note)}</p>`;
+   result.innerHTML=`<p><strong>${check.configuration_ok?'การตั้งค่าที่ตรวจผ่านครบ':'พบรายการที่ต้องแก้ไข'}</strong> · ${esc(check.mode)} · รับชำระเงิน: ${check.billing_enabled?'เปิด':'ปิด'}</p><ul>${check.checks.map(c=>`<li>${c.ok?'✓':'✗'} <strong>${esc(c.name)}</strong>: ${esc(c.message)}</li>`).join('')}</ul><p>${esc(check.note)}</p><h3>Webhook ที่ Mart ประมวลผลสำเร็จล่าสุด</h3>${check.last_processed_webhook?`<p>✓ ${esc(check.last_processed_webhook.type)} · ${esc(date(check.last_processed_webhook.processed_at))}<br>รหัสเหตุการณ์: <code>${esc(check.last_processed_webhook.id)}</code></p><p>รายการนี้ผ่านการตรวจลายเซ็นและอัปเดตสถานะจาก Stripe แล้ว ณ เวลาที่แสดง ไม่ยืนยันการส่งครั้งถัดไปหรือ Secret ที่เปลี่ยนภายหลัง</p>`:'<p>ยังไม่มีรายการที่ประมวลผลสำเร็จ การเปิด Checkout อย่างเดียวยังไม่ยืนยัน Webhook หรือการเปิดสิทธิ์หลังชำระเงิน</p>'}`;
   }catch(e){result.textContent=e.message;}finally{button.disabled=false;}
  };
 

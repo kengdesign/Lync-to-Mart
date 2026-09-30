@@ -396,5 +396,6 @@ export async function checkBillingConfiguration(env){
    catch(e){add(plan+' / '+period,false,e.message);}
   }
  }else add('การตั้งค่า',false,'ตรวจ APP_ENV, API Key, Webhook Secret, Tax Rate ID และ Price ID ทั้ง 6 ค่า');
- return {mode,billing_enabled:env.BILLING_ENABLED==='true',checks,configuration_ok:checks.every(c=>c.ok),webhook_verified:false,note:'ตรวจแบบอ่านอย่างเดียว ไม่สร้างลูกค้า ไม่สร้างรายการชำระเงิน และไม่ตรวจสิทธิ์ Write หรือการส่ง Webhook'};
+ const lastProcessedWebhook=await q(env,'SELECT id,type,processed_at FROM billing_events ORDER BY processed_at DESC LIMIT 1').first();
+ return {last_processed_webhook:lastProcessedWebhook||null,mode,billing_enabled:env.BILLING_ENABLED==='true',checks,configuration_ok:checks.every(c=>c.ok),webhook_verified:false,note:'ตรวจแบบอ่านอย่างเดียว ไม่สร้างลูกค้า ไม่สร้างรายการชำระเงิน และไม่ตรวจสิทธิ์ Write หรือการส่ง Webhook'};
 }
