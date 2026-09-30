@@ -1,3 +1,5 @@
+import {teamContext,teamShops,teamMediaRead,scopedMedia,manageTeam,teamList,inviteInfo,acceptInvite,teamAudit} from './team.mjs';
+const teamRequests=new WeakMap();
 import {startCardUpdate,cancelCardUpdate,billingHistory,previewDowngrade,scheduleDowngrade,cancelDowngrade,previewUpgrade,startUpgrade,abandonUpgrade,billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
 import {assertActive,manageMember,activeMemberSQL} from './member-controls.mjs';
 import {requestRegistration,completeRegistration} from './registration.mjs';
@@ -28,7 +30,7 @@ const query=(env,sql,...args)=>env.DB.prepare(sql).bind(...args);
 async function body(req){if(Number(req.headers.get('content-length'))>200000)fail('ข้อมูลยาวเกินไป',413);const text=await boundedHTML(req,200000);if(text.length>200000)fail('ข้อมูลยาวเกินไป',413);try{return JSON.parse(text);}catch{fail('รูปแบบข้อมูลไม่ถูกต้อง');}}
 async function realOwner(req,env){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(!token)fail('กรุณาเข้าสู่ระบบ',401);const u=await query(env,'SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?',await hash(token),now()).first();if(!u)fail('กรุณาเข้าสู่ระบบอีกครั้ง',401);await assertActive(env,u.id);return u;}
 async function owner(req,env){return swapUser(req,env,await realOwner(req,env));}
-async function shopFor(env,id,user){const s=await query(env,'SELECT * FROM shops WHERE id=? AND owner_id=?',id,user.id).first();if(!s)fail('ไม่พบร้านค้า',404);return s;}
+async function shopFor(env,id,user){const s=await query(env,'SELECT * FROM shops WHERE id=? AND owner_id=?',id,user.id).first();if(!s||(user.team&&user.team.shop_id!==id))fail('ไม่พบร้านค้า',404);return s;}
 const planFor=effectivePlan;
 async function event(env,shop,product,kind){await query(env,'INSERT INTO events(id,shop_id,product_id,kind,day) VALUES(?,?,?,?,?)',crypto.randomUUID(),shop,product,kind,new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'})).run();}
 function html(content,status=200){return new Response(content,{status,headers:{'content-type':'text/html; charset=utf-8','Cache-Control':'no-store'}});}
@@ -44,6 +46,8 @@ async function handle(req,env,ctx){
  if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await realOwner(req,env),url));
  if((p==='/sh0rt-log1ng/'||p==='/sh0rt-log1ng')&&method==='GET')return env.ASSETS.fetch(new Request(new URL('/admin.html',url),req));
  if(p==='/api/admin/members'&&method==='POST')return json(await manageMember(env,await realOwner(req,env),await body(req)));
+ if(p==='/api/team-invite/info'&&method==='POST')return json(await inviteInfo(env,(await body(req)).token));
+ if(p==='/api/team-invite/accept'&&method==='POST'){const actor=cookieValue(req,'mart_session')?await realOwner(req,env):null;return json(await acceptInvite(req,env,await body(req),actor));}
  if(p==='/api/register/request'&&method==='POST')return json(await requestRegistration(req,env,await body(req)));
  if(p==='/api/register/complete'&&method==='POST')return json(await completeRegistration(req,env,await body(req)));
  const discovered=await discovery(req,env);if(discovered)return discovered;
@@ -64,7 +68,7 @@ async function handle(req,env,ctx){
  if(p==='/api/logout'&&method==='POST'&&cookieValue(req,'mart_swap')){await stopSwap(req,env);return json({ok:true,return_to_admin:true},200,{'Set-Cookie':swapCookie(req)});}
  if(p==='/api/logout'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(token)await query(env,'DELETE FROM sessions WHERE token_hash=?',await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'});}
  if(p.startsWith('/preview/')&&method==='GET'){
-  const user=await owner(req,env),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
+  const user=await teamContext(req,env,await owner(req,env)),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
   const requestedTheme=url.searchParams.get('theme');if(requestedTheme!==null){if(!validTheme(requestedTheme))fail('ธีมไม่ถูกต้อง');if(requestedTheme!=='classic'&&!paidThemes(plan.id))fail('ธีมนี้สำหรับแพ็กเกจ Starter, Growth และ Brand',403);shop.theme=requestedTheme;}
   const {results:products}=await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY featured DESC,created_at DESC,id DESC',shop.id).all();
   return html(storefront({...shop,branding:plan.branding,plan_id:plan.id},products,url.origin,true,true,url.searchParams));
@@ -89,7 +93,7 @@ async function handle(req,env,ctx){
    const candidates=(await query(env,`SELECT s.showcase_json,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.published=1 AND ${activeMemberSQL} AND EXISTS(SELECT 1 FROM json_each(s.showcase_json,'$.campaigns') c WHERE json_extract(c.value,'$.key')=? OR json_extract(c.value,'$.mobile')=?)`,...planBindings(env),key,key).all()).results;
    publicCampaign=candidates.some(s=>{const limit=showcaseLimits(s.plan_id),data=readShowcase(s.showcase_json);return (data.campaigns||[]).slice(0,limit.images).some(c=>c.enabled&&(c.key===key||(limit.mobile&&c.mobile===key)));});
   }
-  if(!publicImage&&!publicBrand&&!publicCampaign){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first())fail('ไม่พบรูปภาพ',404);}
+  if(!publicImage&&!publicBrand&&!publicCampaign){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first()&&!await teamMediaRead(env,u,key))fail('ไม่พบรูปภาพ',404);}
   const metadata=await query(env,'SELECT mime,size FROM media WHERE key=?',key).first();if(!metadata)fail('ไม่พบไฟล์',404);
   const headers={'Content-Type':metadata.mime,'Cache-Control':'private, no-store','Accept-Ranges':'bytes','Content-Length':String(metadata.size)};
   let range;const requested=req.headers.get('range');
@@ -103,7 +107,10 @@ async function handle(req,env,ctx){
   const object=await env.MEDIA.get(key,range?{range}:undefined);if(!object)fail('ไม่พบไฟล์',404);return new Response(object.body,{status:range?206:200,headers});
  }
  if(p.startsWith('/api/')){
-  const user=await owner(req,env),plan=await planFor(env,user);
+  const actor=await owner(req,env),user=await teamContext(req,env,actor),plan=await planFor(env,user);
+  if(user.team&&!['GET','HEAD'].includes(method))teamRequests.set(req,{owner:user.id,actor:actor.id,target:user.team.shop_id,action:method+' '+p});
+  if(p==='/api/team'&&method==='GET')return json(await teamList(env,actor));
+  if(p==='/api/team'&&method==='POST')return json(await manageTeam(req,env,actor,await body(req)));
   if(user.impersonation&&p.startsWith('/api/account/'))fail('โหมดเข้าดูแทนไม่เปิดข้อมูลความปลอดภัยของบัญชี',403);
   if(p.startsWith('/api/billing/')&&user.impersonation)fail('โหมดเข้าดูแทนไม่สามารถเข้าถึงการชำระเงิน',403);
   if(p==='/api/billing/card-update'&&method==='POST')return json(await startCardUpdate(env,user,url.origin));
@@ -122,7 +129,7 @@ async function handle(req,env,ctx){
   if(p==='/api/account/sessions'&&method==='GET'){const row=await query(env,'SELECT COUNT(*) AS active FROM sessions WHERE user_id=? AND expires>?',user.id,now()).first();return json({active:row.active,others:Math.max(0,row.active-1)});}
   if(p==='/api/account/logout-others'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];await query(env,'DELETE FROM sessions WHERE user_id=? AND token_hash<>?',user.id,await hash(token)).run();return json({ok:true});}
   if(p==='/api/account/password'&&method==='POST'){await changePassword(env,user,await body(req));return json({ok:true},200,{'Set-Cookie':`mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${url.protocol==='https:'?'; Secure':''}`});}
-  if(p==='/api/me'&&method==='GET'){const {results:shops}=await query(env,'SELECT * FROM shops WHERE owner_id=? ORDER BY created_at',user.id).all();return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
+  if(p==='/api/me'&&method==='GET'){const shops=await teamShops(env,user);return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
   if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
   if(p==='/api/shops'&&method==='POST'){
@@ -155,7 +162,7 @@ async function handle(req,env,ctx){
    }
    if(sm[2]==='duplicate'&&method==='POST'){const b=await body(req);const duplicate=await findDuplicate(env,shop.id,clean(b.exclude_id,100),b.url);return json({product:duplicate?productRecord(duplicate):null});}
    if(sm[2]==='share'&&method==='GET')return json(shopShare(shop,url.origin));
-   if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}
+   if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await scopedMedia(env,user,images[field]))fail('รูปภาพไม่ใช่ของร้านนี้',403);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}
     const coverY=b.cover_position_y===undefined?shop.cover_position_y:Number(b.cover_position_y);if(b.cover_position_y===null||b.cover_position_y===''||!Number.isInteger(coverY)||coverY<0||coverY>100)fail('ตำแหน่งภาพปกต้องอยู่ระหว่าง 0–100');
     const theme=b.theme===undefined?shop.theme:b.theme;if(!validTheme(theme))fail('ธีมไม่ถูกต้อง');if(b.theme!==undefined&&theme!=='classic'&&!paidThemes(plan.id))fail('ธีมนี้สำหรับแพ็กเกจ Starter, Growth และ Brand',403);
     await query(env,'UPDATE shops SET name=?,description=?,line_url=?,published=?,logo_key=?,cover_key=?,seo_title=?,seo_description=?,cover_position_y=?,theme=? WHERE id=? AND owner_id=?',name,clean(b.description,1500),line,b.published===true?1:0,images.logo_key,images.cover_key,b.seo_title===undefined?shop.seo_title:clean(b.seo_title,100),b.seo_description===undefined?shop.seo_description:clean(b.seo_description,200),coverY,theme,shop.id,user.id).run();return json({ok:true});}
@@ -180,9 +187,9 @@ async function handle(req,env,ctx){
    }
   }
   const tm=p.match(/^\/api\/trash\/([^/]+)(?:\/(restore))?$/);
-  if(tm){const row=await ownedTrash(env,tm[1],user);if(tm[2]==='restore'&&method==='POST')return json(await restoreProduct(env,row,user,plan));if(!tm[2]&&method==='DELETE'){await query(env,'DELETE FROM product_trash WHERE id=?',row.id).run();return json({ok:true});}}
+  if(tm){const row=await ownedTrash(env,tm[1],user);if(user.team&&row.shop_id!==user.team.shop_id)fail('ไม่พบสินค้า',404);if(tm[2]==='restore'&&method==='POST')return json(await restoreProduct(env,row,user,plan));if(!tm[2]&&method==='DELETE'){await query(env,'DELETE FROM product_trash WHERE id=?',row.id).run();return json({ok:true});}}
   const pm=p.match(/^\/api\/products\/([^/]+)(?:\/(featured))?$/);
-  if(pm){const product=await query(env,'SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND s.owner_id=?',pm[1],user.id).first();if(!product)fail('ไม่พบสินค้า',404);
+  if(pm){const product=await query(env,'SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND s.owner_id=?',pm[1],user.id).first();if(!product||(user.team&&product.shop_id!==user.team.shop_id))fail('ไม่พบสินค้า',404);
    if(pm[2]==='featured'){if(method!=='PUT')return json({error:'ไม่พบรายการที่ขอ'},404);const b=await body(req);if(typeof b.featured!=='boolean')fail('สถานะปักหมุดไม่ถูกต้อง');await query(env,'UPDATE products SET featured=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',b.featured?1:0,product.id).run();return json({featured:b.featured});}
    if(method==='GET')return json(productRecord(product));
    if(method==='PUT'){const data=await productData(await body(req),env,user,product);if(await findDuplicate(env,product.shop_id,product.id,data[3]))fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);const updated=await query(env,`UPDATE products SET name=?,description=?,price=?,source_url=?,image_key=?,status=?,description_html=?,gallery_json=?,variants_json=?,category=?,checkout_url=?,import_provenance=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND NOT EXISTS(${duplicateSQL})`,...data,product.id,product.shop_id,product.id,productIdentity(data[3])).run();if(!updated.meta.changes)fail('สินค้านี้มีอยู่ในร้านแล้ว กรุณาเปิดแก้ไขรายการเดิม',409);return json({ok:true});}
@@ -208,7 +215,7 @@ async function handle(req,env,ctx){
   return json({error:'ไม่พบรายการที่ขอ'},404);
  }
  if(method!=='GET'&&method!=='HEAD')return json({error:'ไม่พบรายการที่ขอ'},404);
- if(p==='/'||p==='/dashboard'||p==='/reset-password'||p==='/forgot-password'||p==='/register'||p==='/verify-email')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
+ if(p==='/'||p==='/dashboard'||p==='/reset-password'||p==='/forgot-password'||p==='/register'||p==='/verify-email'||p==='/team-invite')return env.ASSETS.fetch(new Request(new URL('/index.html',url),req));
  return env.ASSETS.fetch(req);
 }
 async function productData(b,env,user,existing={}){
@@ -225,7 +232,7 @@ async function productData(b,env,user,existing={}){
  if(gallery.some(g=>g?.url&&!g?.key))fail('กรุณานำเข้ารูปสินค้าให้ครบก่อนบันทึก',422);
  const images=gallery.map(g=>({key:clean(g.key,150),alt:clean(g.alt,180)}));
  const keys=[...new Set([...images.map(g=>g.key),...content.keys])];
- for(const key of keys){if(!key||!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,user.id).first())fail('รูปภาพไม่ใช่ของบัญชีนี้',403);}
+ for(const key of keys){if(!await scopedMedia(env,user,key))fail('รูปภาพไม่ใช่ของร้านนี้',403);if(!key||!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,user.id).first())fail('รูปภาพไม่ใช่ของบัญชีนี้',403);}
  if(b.description_html&&/<(?:img|video)\b[^>]*src=["']https?:/i.test(b.description_html))fail('กรุณานำเข้ารูปในรายละเอียดให้ครบก่อนบันทึก',422);
  const variants=b.variants||[];if(!Array.isArray(variants)||variants.length>100)fail('รองรับตัวเลือกสินค้าไม่เกิน 100 แบบ');
  const seen=new Set();const vs=variants.map(v=>{if(v.image_url&&!v.image_key)fail('กรุณานำเข้ารูปตัวเลือกให้ครบก่อนบันทึก',422);if(!Array.isArray(v.attributes)||!v.attributes.length||v.attributes.length>10)fail('กรอกคุณลักษณะของตัวเลือกสินค้า');
@@ -245,6 +252,6 @@ async function saveImage(source,env,user,video=false){
  let mime;if(video){const h=new TextDecoder().decode(bytes.slice(4,12));if(h.slice(0,4)!=='ftyp'||!['isom','iso2','mp41','mp42','avc1','M4V '].includes(h.slice(4)))fail('กรุณาใช้ไฟล์ MP4 (H.264/AAC)');mime='video/mp4';}else if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)mime='image/jpeg';else if([137,80,78,71,13,10,26,10].every((x,i)=>bytes[i]===x))mime='image/png';else if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')mime='image/webp';else fail('รองรับรูป JPG, PNG และ WebP เท่านั้น');
  const key=`${user.id}/${crypto.randomUUID()}`;
  const reserved=await query(env,'INSERT INTO media(key,owner_id,mime,size) SELECT ?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM media WHERE owner_id=?)+?<=?',key,user.id,mime,size,user.id,size,STORAGE_LIMIT).run();if(!reserved.meta.changes)fail('พื้นที่รูปภาพและวิดีโอเต็มแล้ว',409);
- try{await env.MEDIA.put(key,bytes,{httpMetadata:{contentType:mime}});}catch(err){await query(env,'DELETE FROM media WHERE key=?',key).run();throw err;}return key;
+ try{await env.MEDIA.put(key,bytes,{httpMetadata:{contentType:mime}});if(user.team)await query(env,'INSERT INTO team_media(key,shop_id) VALUES(?,?)',key,user.team.shop_id).run();}catch(err){await query(env,'DELETE FROM media WHERE key=?',key).run();throw err;}return key;
 }
-export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com https://cf.shopee.co.th; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};
+export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);const audit=teamRequests.get(req);if(audit&&response.ok)await teamAudit(env,audit.owner,audit.actor,audit.action,audit.target);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com https://cf.shopee.co.th; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};

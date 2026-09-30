@@ -1,3 +1,4 @@
+import {scopedMedia} from './team.mjs';
 import {showcaseLimits,showcaseOrder,readShowcase} from '../public/showcase-limits.js';
 import {escape as e} from './security.mjs';
 import {imageURL,priceLabel} from './content.mjs';
@@ -20,6 +21,7 @@ export async function saveShowcase(env,user,shop,plan,data){
   if(!item.key||!item.alt)fail('กรุณาใส่ภาพและคำอธิบายภาพ');
   if(item.mobile&&!limit.mobile)fail('ภาพเฉพาะมือถือสำหรับ Brand',403);
   for(const key of [item.key,item.mobile].filter(Boolean)){
+   if(!await scopedMedia(env,user,key))fail('รูปภาพไม่ใช่ของร้านนี้',403);
    if(!await env.DB.prepare("SELECT key FROM media WHERE key=? AND owner_id=? AND size<=1500000 AND mime IN ('image/jpeg','image/png','image/webp')").bind(key,user.id).first())fail('ใช้รูปภาพของบัญชีนี้ ขนาดไม่เกิน 1.5 MB',403);
   }
   for(const field of ['width','height','mobile_width','mobile_height']){
