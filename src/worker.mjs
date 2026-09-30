@@ -1,3 +1,4 @@
+import {adminGate} from './admin-gate.mjs';
 import {teamContext,teamShops,teamMediaRead,scopedMedia,manageTeam,teamList,inviteInfo,acceptInvite,teamAudit} from './team.mjs';
 const teamRequests=new WeakMap();
 import {startCardUpdate,cancelCardUpdate,billingHistory,previewDowngrade,scheduleDowngrade,cancelDowngrade,previewUpgrade,startUpgrade,abandonUpgrade,billingReady,billingStatus,checkout,refreshBilling,cancelRenewal,billingWebhook} from './billing.mjs';
@@ -37,6 +38,7 @@ function html(content,status=200){return new Response(content,{status,headers:{'
 function page(title,content){return `<!doctype html><html lang="th"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=mart1"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} | Lync to Mart</title><link rel="stylesheet" href="/styles.css"></head><body class="store-body">${content}</body></html>`;}
 async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
+ const gate=await adminGate(req,env);if(gate)return gate;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
  if(p==='/api/billing/webhook'&&method==='POST')return json(await billingWebhook(req,env));
  if(['POST','PUT','DELETE'].includes(method)&&req.headers.get('origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
