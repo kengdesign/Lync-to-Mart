@@ -12,3 +12,13 @@ test('production preparation rejects staging bindings, test overrides, secrets a
   const copy=structuredClone(c);mutate(copy);assert.equal(productionPreflight(copy,s).configuration_valid,false);
  }
 });
+
+test('production billing accepts configured live prices but rejects missing, duplicate or staging IDs',()=>{
+ const c=load('wrangler.production.jsonc'),s=load('wrangler.jsonc');
+ assert.equal(c.vars.BILLING_ENABLED,'true');
+ assert.equal(productionPreflight(c,s).configuration_valid,true);
+ assert.equal(productionPreflight(c,s).launch_ready,false);
+ for(const mutate of [c=>delete c.vars.STRIPE_PRICE_BRAND_YEARLY,c=>c.vars.STRIPE_PRICE_STARTER_MONTHLY=c.vars.STRIPE_PRICE_GROWTH_MONTHLY,c=>c.vars.STRIPE_PRICE_STARTER_MONTHLY=s.vars.STRIPE_PRICE_STARTER_MONTHLY,c=>delete c.vars.STRIPE_VAT_RATE_ID,c=>c.vars.BILLING_ENABLED='yes']){
+  const copy=structuredClone(c);mutate(copy);assert.equal(productionPreflight(copy,s).configuration_valid,false);
+ }
+});

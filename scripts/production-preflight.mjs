@@ -15,8 +15,15 @@ export function productionPreflight(config,staging){
  require(db?.database_id!==staging.d1_databases?.[0]?.database_id,'D1 Production ต้องแยกจาก Staging');
  require(media?.bucket_name==='lync-to-mart-production-media'&&media.bucket_name!==staging.r2_buckets?.[0]?.bucket_name,'R2 Production ต้องแยกจาก Staging');
  require(v.SIGNUP_ENABLED==='false','รอบเตรียมระบบต้องปิดสมัครสาธารณะไว้ก่อน');
- require(v.BILLING_ENABLED==='false','คง Billing ปิดไว้จนตรวจการตั้งค่า Stripe Live ครบ');
- return {configuration_valid:errors.length===0,launch_ready:false,errors,remaining:['ตั้งค่า Stripe Live และตรวจการรับ webhook ก่อนเปิดรับเงิน','ตั้ง Postmark Secret และทดสอบอีเมลบนโดเมนจริง','สร้างบัญชีเจ้าของและแต่งตั้งแอดมินสูงสุดในฐานข้อมูลใหม่','ยืนยันสำรองและกู้คืนข้อมูลบน Cloudflare จริง','ทดสอบสมัคร ร้านค้า ทีม และชำระเงินครบวงจรบน Production ก่อนเปิดสาธารณะ']};
+ require(['false','true'].includes(v.BILLING_ENABLED),'BILLING_ENABLED ต้องเป็น true หรือ false');
+ if(v.BILLING_ENABLED==='true'){
+  const keys=['STARTER','GROWTH','BRAND'].flatMap(plan=>['MONTHLY','YEARLY'].map(period=>'STRIPE_PRICE_'+plan+'_'+period));
+  require(keys.every(key=>/^price_[A-Za-z0-9]+$/.test(v[key]||'')&&v[key]!==staging.vars?.[key]),'เปิด Billing ต้องตั้ง Price ทั้ง 6 รายการแยกจาก Staging');
+  require(new Set(keys.map(key=>v[key])).size===6,'Price ทั้ง 6 รายการต้องไม่ซ้ำกัน');
+  require(/^txr_[A-Za-z0-9]+$/.test(v.STRIPE_VAT_RATE_ID||'')&&v.STRIPE_VAT_RATE_ID!==staging.vars?.STRIPE_VAT_RATE_ID,'เปิด Billing ต้องตั้ง VAT Rate แยกจาก Staging');
+ }
+
+ return {configuration_valid:errors.length===0,launch_ready:false,errors,remaining:['ยืนยัน Webhook และการเปิดสิทธิ์จากรายการสมัครจริง (preflight ตรวจได้เฉพาะไฟล์ตั้งค่า)','ตั้ง Postmark Secret และทดสอบอีเมลบนโดเมนจริง','สร้างบัญชีเจ้าของและแต่งตั้งแอดมินสูงสุดในฐานข้อมูลใหม่','ยืนยันสำรองและกู้คืนข้อมูลบน Cloudflare จริง','ทดสอบสมัคร ร้านค้า ทีม และชำระเงินครบวงจรบน Production ก่อนเปิดสาธารณะ']};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{const result=productionPreflight(JSON.parse(readFileSync(process.argv[2]||'wrangler.production.example.jsonc','utf8')),JSON.parse(readFileSync('wrangler.jsonc','utf8')));console.log(JSON.stringify(result,null,2));process.exitCode=result.configuration_valid?0:1;}
