@@ -23,6 +23,7 @@ import {sanitizeContent,plainHTML,productRecord,remoteImage} from './content.mjs
 import {storefront} from './storefront.mjs';
 import {hash,verifyPassword,safeURL,escape as e} from './security.mjs';
 import {extractProduct,boundedHTML} from './import.mjs';
+import {readThaimartLink} from './thaimart-links.mjs';
 const json=(v,status=200,headers={})=>Response.json(v,{status,headers:{'Cache-Control':'no-store',...headers}});
 const hosts=(s='')=>s.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -200,10 +201,10 @@ async function handle(req,env,ctx){
    if(method==='DELETE'){await trashProduct(env,product.id);return json({ok:true,trashed:true});}
   }
   if(p==='/api/import'&&method==='POST'){
-   const b=await body(req),target=safeURL(b.url,hosts(env.IMPORT_HOSTS));if(!target||!/^\/products\/[a-f0-9]{24}\/?$/i.test(new URL(target).pathname))fail('ยังไม่เปิดนำเข้าจากโดเมนนี้ กรุณาเพิ่มข้อมูลสินค้าด้วยตนเอง',422);
-   let response;try{response=await fetch(target,{redirect:'manual',signal:AbortSignal.timeout(8000),headers:{Accept:'text/html'}});}catch{fail('ดึงข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง',502);}
-   if(!response.ok||!response.headers.get('content-type')?.includes('text/html'))fail('ต้นทางไม่ส่งหน้าสินค้าที่อ่านได้ กรุณาเพิ่มข้อมูลเอง',422);
-   let product;try{product=extractProduct(await boundedHTML(response),target);}catch(err){fail(err.message,422);}if(!product)fail('ไม่พบข้อมูลสินค้าแบบมีโครงสร้าง กรุณาเพิ่มข้อมูลเอง',422);
+   const b=await body(req),page=await readThaimartLink(b.url,hosts(env.IMPORT_HOSTS));
+   let product;try{product=extractProduct(page.html,page.url);}catch(err){fail(err.message,422);}if(!product)fail('ไม่พบข้อมูลสินค้าที่ตรงกับลิงก์ กรุณาตรวจ URL หน้าสินค้า',422);
+   const target=product.source_url;
+   if(!productIdentity(target))fail('ต้นทางไม่ได้ส่งรหัสสินค้าที่ตรวจสอบได้ กรุณาใช้ลิงก์สินค้าแบบรหัสเดิมหรือลองใหม่ภายหลัง',422);
    const receipt=await issueImportReceipt(env,user,target);
    return json({...product,...receipt,source_url:target,status:'draft',notice:'ตรวจสอบข้อมูลและสิทธิ์ใช้รูป ก่อนยืนยันบันทึก รูปจะถูกคัดลอกมายังร้านของคุณ' });
   }

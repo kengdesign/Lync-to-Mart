@@ -1,0 +1,17 @@
+name: Verify public Thaimart import links
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/thaimart-share-links]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: node scripts/check-thaimart-live.mjs

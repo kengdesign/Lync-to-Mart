@@ -16,7 +16,8 @@ export function extractProduct(html,sourceURL=''){
   const m=line.match(/^[a-f0-9]+:([\[{][\s\S]*)$/i);if(m){try{visit(JSON.parse(m[1]));}catch{}}
  }
  let id;try{id=new URL(sourceURL).pathname.match(/^\/products\/([a-f0-9]{24})\/?$/i)?.[1];}catch{}
- const native=id&&objects.find(p=>p.id===id&&typeof p.name==='string'&&Array.isArray(p.variants)&&Array.isArray(p.images));
+ let slug='';try{slug=decodeURIComponent(new URL(sourceURL).pathname).replace(/^\/products\//,'').replace(/\/$/,'');}catch{}
+ const native=objects.find(p=>{if(typeof p.name!=='string'||!Array.isArray(p.variants)||!Array.isArray(p.images))return false;if(id)return p.id===id;try{return !!slug&&typeof p.slug==='string'&&decodeURIComponent(p.slug)===slug;}catch{return false;}});
  const p=native||objects.find(p=>[p['@type']].flat().includes('Product')&&typeof p.name==='string');if(!p)return null;
  const warnings=[];if(p.video)warnings.push('ต้นทางมีวิดีโอ รุ่นนี้นำเข้าเฉพาะข้อความและรูปภาพ วิดีโอยังไม่นำเข้า');let description=typeof p.description==='string'?p.description:'';if(/^\$[a-f0-9]+$/i.test(description)&&references.has(description.slice(1)))description=references.get(description.slice(1));
  // Flight references are not product descriptions; refuse to fabricate missing content.
@@ -38,6 +39,7 @@ export function extractProduct(html,sourceURL=''){
  const offer=Array.isArray(p.offers)?p.offers[0]:p.offers;
  const price=native?(cents(p.minMarkupPrice??p.minPrice)??baseVariant?.price??null):(offer?.priceCurrency==='THB'?cents(offer.price):null);
  if(gallery.length>40||variants.length>100||content.html.length>100000)throw new Error('ข้อมูลสินค้ามากกว่าขีดจำกัดที่รองรับ กรุณาเพิ่มข้อมูลด้วยตนเอง');
- return {name:p.name.slice(0,180),description:content.text,description_html:content.html,gallery,variants,price,category:native?(p.categoryPath||[]).map(c=>c.name).join(' / '):String(p.category||''),source_currency:native?'THB':offer?.priceCurrency||null,image_detected:gallery.length>0,source_url:sourceURL,warnings:[...new Set(warnings)],imported_at:new Date().toISOString()};
+ return {name:p.name.slice(0,180),description:content.text,description_html:content.html,gallery,variants,price,category:native?(p.categoryPath||[]).map(c=>c.name).join(' / '):String(p.category||''),source_currency:native?'THB':offer?.priceCurrency||null,image_detected:gallery.length>0,source_url:native&&/^[a-f0-9]{24}$/i.test(p.id)?'https://thaimart.com/products/'+p.id.toLowerCase():sourceURL,warnings:[...new Set(warnings)],imported_at:new Date().toISOString()};
 }
 export async function boundedHTML(response,limit=2000000){const reader=response.body?.getReader();if(!reader)throw new Error('ไม่พบข้อมูลต้นทาง');let size=0;const chunks=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();throw new Error('ข้อมูลมีขนาดใหญ่เกินไป');}chunks.push(value);}const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return new TextDecoder().decode(bytes);}
+
