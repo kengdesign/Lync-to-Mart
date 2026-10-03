@@ -1,14 +1,30 @@
 import {boundedHTML} from './import.mjs';
+import {parse} from 'parse5';
 const fail=message=>{throw Object.assign(new Error(message),{status:422});};
 export function importLink(raw){
  try{
   if(typeof raw!=='string'||raw.length>4096)return null;
   const u=new URL(raw.trim());if(u.protocol!=='https:'||u.username||u.password||u.port)return null;
   const path=decodeURIComponent(u.pathname);
-  if(u.hostname==='app.thaimart.com'&&/^\/p\/[A-Za-z0-9_-]{1,128}\/?$/.test(path))return u;
+  if(['app.thaimart.com','thaimart.com'].includes(u.hostname)&&/^\/p\/[A-Za-z0-9_-]{1,128}\/?$/.test(path))return u;
   if(u.hostname==='thaimart.com'&&/^\/products\/[^/\\\s?#\x00-\x1f]+\/?$/u.test(path))return u;
  }catch{}
  return null;
+}
+// Thaimart's app landing page exposes the desktop destination as a JSON string.
+// Read only that literal: never execute upstream scripts or launch app intents.
+export function shareDestination(html){
+ const destinations=new Set();
+ function visit(n){
+  if(n.tagName==='script'){
+   const text=(n.childNodes||[]).map(c=>c.value||'').join('');
+   for(const m of text.matchAll(/\b(?:var|let|const)\s+webFallback\s*=\s*("(?:[^"\\\r\n]|\\.)*")\s*;/g)){
+    try{const u=importLink(JSON.parse(m[1]));if(u?.hostname==='thaimart.com')destinations.add(u.href);}catch{}
+   }
+  }
+  for(const c of n.childNodes||[])visit(c);
+ }
+ visit(parse(html));return destinations.size===1?[...destinations][0]:null;
 }
 export async function readThaimartLink(raw,enabledHosts,fetcher=fetch){
  if(!enabledHosts.includes('thaimart.com'))fail('ยังไม่เปิดนำเข้าจาก Thaimart กรุณาติดต่อผู้ดูแล');
@@ -24,8 +40,14 @@ export async function readThaimartLink(raw,enabledHosts,fetcher=fetch){
    target=next;continue;
   }
   if(!response.ok){await response.body?.cancel();if(response.status===403||response.status===429)fail('Thaimart จำกัดการอ่านข้อมูลอัตโนมัติในขณะนี้ หากใช้ลิงก์แชร์ ให้ลองคัดลอก URL จากแถบที่อยู่ของหน้าสินค้า หากยังไม่ได้ กรุณาลองภายหลังหรือเพิ่มสินค้าเอง');fail('Thaimart ไม่ส่งหน้าสินค้าที่อ่านได้ กรุณาตรวจว่าลิงก์ยังเปิดได้');}
-  if(target.hostname!=='thaimart.com'||!response.headers.get('content-type')?.includes('text/html')){await response.body?.cancel();fail('ลิงก์แชร์นี้ยังไม่ส่งหน้าสินค้า กรุณาคัดลอก URL จากแถบที่อยู่ของหน้าสินค้า');}
-  return {url:target.href,html:await boundedHTML(response)};
+  if(!response.headers.get('content-type')?.includes('text/html')){await response.body?.cancel();fail('Thaimart ไม่ส่งหน้าสินค้าที่อ่านได้ กรุณาตรวจสอบลิงก์');}
+  const html=await boundedHTML(response);
+  if(target.pathname.startsWith('/p/')){
+   const next=shareDestination(html);
+   if(!next)fail('ไม่พบปลายทางสินค้าจากลิงก์แชร์นี้ กรุณาตรวจสอบลิงก์ หรือลองคัดลอกลิงก์จากหน้าสินค้า');
+   target=importLink(next);continue;
+  }
+  return {url:target.href,html};
  }
  fail('ลิงก์แชร์เปลี่ยนเส้นทางหลายครั้งเกินไป กรุณาคัดลอก URL จากหน้าสินค้าโดยตรง');
 }
