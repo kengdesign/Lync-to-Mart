@@ -53,7 +53,9 @@ export async function teamContext(req,env,actor){
  if(!shopId)return actor;
  const shop=await q(env,'SELECT * FROM shops WHERE id=?',shopId).first();if(!shop)fail('ไม่พบร้านค้า',404);
  if(header&&header!==shopId)fail('คำขอไม่ตรงกับร้านที่เลือก');
- const access=await teamAccess(env,actor,shop);if(access.role==='owner')return actor;
+ const access=await teamAccess(env,actor,shop);
+ if(shop.moderation_status&&shop.moderation_status!=='active'&&!['GET','HEAD'].includes(method))fail('ร้านนี้ถูกระงับ แบน หรือลบโดยผู้ดูแล กรุณาติดต่อฝ่ายช่วยเหลือ');
+ if(access.role==='owner')return actor;
  if(actor.impersonation)fail('โหมดเข้าดูแทนไม่สามารถใช้สิทธิ์ทีมได้');
  if(!['GET','HEAD'].includes(method)){
   let data={};if(method!=='DELETE'&&!/^\/api\/media(?:\/video)?$/.test(path)){try{data=JSON.parse(await boundedHTML(req.clone(),200000))||{};}catch{fail('ข้อมูลไม่ถูกต้องหรือยาวเกินไป',400);}}
@@ -161,3 +163,4 @@ export async function acceptInvite(req,env,data,actor){
  const results=await env.DB.batch(statements);if(results[newPassword?1:0].meta.changes!==1)fail('คำเชิญถูกใช้แล้วหรือบัญชีเปลี่ยน กรุณาเข้าสู่ระบบแล้วเปิดลิงก์อีกครั้ง',409);
  await teamAudit(env,row.owner_id,id,'accept',row.email);return {ok:true};
 }
+

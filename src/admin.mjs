@@ -45,7 +45,7 @@ export async function adminData(env,user,url){
   return {role,view,rows,total,page,pages:Math.max(1,Math.ceil(total/25))};
  }
  if(view==='overview'){
-  const stats=await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM shops) shops,(SELECT COUNT(*) FROM shops WHERE published=1) published_shops,(SELECT COUNT(*) FROM products) products,(SELECT COUNT(*) FROM products WHERE status='published') published_products,(SELECT COALESCE(SUM(size),0) FROM media) storage_bytes`).first();
+  const stats=await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM shops) shops,(SELECT COUNT(*) FROM shops WHERE published=1 AND moderation_status='active') published_shops,(SELECT COUNT(*) FROM products) products,(SELECT COUNT(*) FROM products WHERE status='published') published_products,(SELECT COALESCE(SUM(size),0) FROM media) storage_bytes`).first();
   return {role,view,stats,environment:env.APP_ENV||'unknown',billing_connected:billingReady(env)};
  }
  if(view==='users'){
@@ -62,11 +62,14 @@ export async function adminData(env,user,url){
  }
  return {role,view,rows,total,page,pages:Math.max(1,Math.ceil(total/25))};
  }
+ const shopStatus=url.searchParams.get('shop_status')||'';
+ if(shopStatus&&!['active','suspended','banned','deleted'].includes(shopStatus))throw Object.assign(new Error('ตัวกรองสถานะร้านไม่ถูกต้อง'),{status:400});
  const from=view==='users'?`FROM users u WHERE u.email LIKE ? ESCAPE '\\'`:`FROM shops s JOIN users u ON u.id=s.owner_id WHERE (s.name LIKE ? ESCAPE '\\' OR s.slug LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\')`;
- const args=view==='users'?[pattern]:[pattern,pattern,pattern];
- const total=(await env.DB.prepare('SELECT COUNT(*) total '+from).bind(...args).first()).total;
- const fields=view==='users'?`u.id,u.email,u.plan_id,(SELECT COUNT(*) FROM shops s WHERE s.owner_id=u.id) shop_count,(SELECT COALESCE(SUM(size),0) FROM media m WHERE m.owner_id=u.id) storage_bytes`:`s.id,s.name,s.slug,s.published,u.email,u.id AS owner_id,(SELECT COUNT(*) FROM products p WHERE p.shop_id=s.id) product_count`;
- const rows=(await env.DB.prepare(`SELECT ${fields} ${from} ORDER BY ${view==='users'?'u.id':'s.created_at DESC,s.id'} LIMIT 25 OFFSET ?`).bind(...args,(page-1)*25).all()).results;
+ const shopWhere=shopStatus?' AND s.moderation_status=?':'';
+ const args=view==='users'?[pattern]:[pattern,pattern,pattern,...(shopStatus?[shopStatus]:[])];
+ const total=(await env.DB.prepare('SELECT COUNT(*) total '+from+shopWhere).bind(...args).first()).total;
+ const fields=view==='users'?`u.id,u.email,u.plan_id,(SELECT COUNT(*) FROM shops s WHERE s.owner_id=u.id) shop_count,(SELECT COALESCE(SUM(size),0) FROM media m WHERE m.owner_id=u.id) storage_bytes`:`s.id,s.name,s.slug,s.published,s.moderation_status,s.moderation_reason,s.moderation_updated_at,u.email,u.id AS owner_id,(SELECT COUNT(*) FROM products p WHERE p.shop_id=s.id) product_count`;
+ const rows=(await env.DB.prepare(`SELECT ${fields} ${from}${shopWhere} ORDER BY ${view==='users'?'u.id':'s.created_at DESC,s.id'} LIMIT 25 OFFSET ?`).bind(...args,(page-1)*25).all()).results;
  if(rows.length){
   const owners=[...new Set(rows.map(r=>r.owner_id))];
   const plans=(await env.DB.prepare(`SELECT u.id,(${planExpression}) AS plan FROM users u WHERE u.id IN (${owners.map(()=>'?').join(',')})`).bind(...planBindings(env),...owners).all()).results;
@@ -75,3 +78,4 @@ export async function adminData(env,user,url){
  }
  return {role,view,rows,total,page,pages:Math.max(1,Math.ceil(total/25))};
 }
+

@@ -5,7 +5,8 @@ import {startCardUpdate,cancelCardUpdate,billingHistory,previewDowngrade,schedul
 import {assertActive,manageMember,activeMemberSQL} from './member-controls.mjs';
 import {requestRegistration,completeRegistration} from './registration.mjs';
 import {cookieValue,swapCookie,startSwap,stopSwap,swapUser} from './admin-swap.mjs';
-import {adminData} from './admin.mjs';
+import {adminData,adminRole} from './admin.mjs';
+import {manageShop} from './shop-controls.mjs';
 import {showcaseLimits,readShowcase} from '../public/showcase-limits.js';
 import {saveShowcase} from './showcase.mjs';
 import {requestReset,resetPassword} from './password-recovery.mjs';
@@ -47,6 +48,7 @@ async function handle(req,env,ctx){
  if(cookieValue(req,'mart_swap')&&['POST','PUT','DELETE'].includes(method)&&p!=='/api/logout')fail('กำลังเข้าดูแทนร้านค้าแบบอ่านอย่างเดียว กรุณากลับบัญชีแอดมินก่อนทำรายการ',403);
  if(p==='/api/admin'&&method==='GET')return json(await adminData(env,await realOwner(req,env),url));
  if((p==='/sh0rt-log1ng/'||p==='/sh0rt-log1ng')&&method==='GET')return env.ASSETS.fetch(new Request(new URL('/admin.html',url),req));
+ if(p==='/api/admin/shops'&&method==='POST'){const actor=await realOwner(req,env);return json(await manageShop(env,actor,await adminRole(env,actor),await body(req)));}
  if(p==='/api/admin/members'&&method==='POST')return json(await manageMember(env,await realOwner(req,env),await body(req)));
  if(p==='/api/team-invite/info'&&method==='POST')return json(await inviteInfo(env,(await body(req)).token));
  if(p==='/api/team-invite/accept'&&method==='POST'){const actor=cookieValue(req,'mart_session')?await realOwner(req,env):null;return json(await acceptInvite(req,env,await body(req),actor));}
@@ -76,23 +78,23 @@ async function handle(req,env,ctx){
   return html(storefront({...shop,branding:plan.branding,plan_id:plan.id},products,url.origin,true,true,url.searchParams));
  }
  if(p.startsWith('/shop/')&&method==='GET'){
-  const slug=decodeURIComponent(p.slice(6));const s=await query(env,`SELECT s.*,pl.branding,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.slug=? AND s.published=1 AND ${activeMemberSQL}`,...planBindings(env),slug).first();
+  const slug=decodeURIComponent(p.slice(6));const s=await query(env,`SELECT s.*,pl.branding,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.slug=? AND s.published=1 AND s.moderation_status='active' AND ${activeMemberSQL}`,...planBindings(env),slug).first();
   if(!s)return html(page('ไม่พบร้าน','<main class="missing"><h1>ร้านนี้ยังไม่เปิดให้เข้าชม</h1><p>ตรวจสอบลิงก์หรือติดต่อเจ้าของร้าน</p></main>'),404);
   const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY featured DESC,created_at DESC,id DESC",s.id).all();
   ctx.waitUntil(event(env,s.id,null,'view').catch(()=>{}));
   return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams));
  }
  if(p.startsWith('/go/')&&method==='GET'){
-  const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1 AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active')",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
+  const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active')",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
   const target=safeURL(product.checkout_url||product.source_url,hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
   ctx.waitUntil(event(env,product.shop_id,product.id,'buy_click').catch(()=>{}));return new Response(null,{status:302,headers:{Location:target,'Cache-Control':'no-store','Referrer-Policy':'strict-origin-when-cross-origin'}});
  }
  if(p.startsWith('/media/')&&['GET','HEAD'].includes(method)){
-  const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active') LIMIT 1",key,key,'src="/media/'+encodeURIComponent(key)+'"').first();
-  const publicBrand=await query(env,"SELECT s.id FROM shops s WHERE published=1 AND (logo_key=? OR cover_key=?) AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active') LIMIT 1",key,key).first();
+  const key=decodeURIComponent(p.slice(7));const publicImage=await query(env,"SELECT p.id FROM products p JOIN shops s ON s.id=p.shop_id WHERE (p.image_key=? OR EXISTS(SELECT 1 FROM json_each(p.gallery_json) g WHERE json_extract(g.value,'$.key')=?) OR instr(p.description_html,?)>0) AND p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active') LIMIT 1",key,key,'src="/media/'+encodeURIComponent(key)+'"').first();
+  const publicBrand=await query(env,"SELECT s.id FROM shops s WHERE published=1 AND s.moderation_status='active' AND (logo_key=? OR cover_key=?) AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active') LIMIT 1",key,key).first();
   let publicCampaign=false;
   if(!publicImage&&!publicBrand){
-   const candidates=(await query(env,`SELECT s.showcase_json,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.published=1 AND ${activeMemberSQL} AND EXISTS(SELECT 1 FROM json_each(s.showcase_json,'$.campaigns') c WHERE json_extract(c.value,'$.key')=? OR json_extract(c.value,'$.mobile')=?)`,...planBindings(env),key,key).all()).results;
+   const candidates=(await query(env,`SELECT s.showcase_json,pl.id AS plan_id FROM shops s JOIN users u ON u.id=s.owner_id JOIN plans pl ON pl.id=(${planExpression}) WHERE s.published=1 AND s.moderation_status='active' AND ${activeMemberSQL} AND EXISTS(SELECT 1 FROM json_each(s.showcase_json,'$.campaigns') c WHERE json_extract(c.value,'$.key')=? OR json_extract(c.value,'$.mobile')=?)`,...planBindings(env),key,key).all()).results;
    publicCampaign=candidates.some(s=>{const limit=showcaseLimits(s.plan_id),data=readShowcase(s.showcase_json);return (data.campaigns||[]).slice(0,limit.images).some(c=>c.enabled&&(c.key===key||(limit.mobile&&c.mobile===key)));});
   }
   if(!publicImage&&!publicBrand&&!publicCampaign){const u=await owner(req,env);if(!await query(env,'SELECT key FROM media WHERE key=? AND owner_id=?',key,u.id).first()&&!await teamMediaRead(env,u,key))fail('ไม่พบรูปภาพ',404);}
@@ -257,3 +259,4 @@ async function saveImage(source,env,user,video=false){
  try{await env.MEDIA.put(key,bytes,{httpMetadata:{contentType:mime}});if(user.team)await query(env,'INSERT INTO team_media(key,shop_id) VALUES(?,?)',key,user.team.shop_id).run();}catch(err){await query(env,'DELETE FROM media WHERE key=?',key).run();throw err;}return key;
 }
 export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);const audit=teamRequests.get(req);if(audit&&response.ok)await teamAudit(env,audit.owner,audit.actor,audit.action,audit.target);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com https://cf.shopee.co.th; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};
+
