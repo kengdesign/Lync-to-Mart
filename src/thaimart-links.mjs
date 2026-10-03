@@ -23,7 +23,7 @@ export async function readThaimartLink(raw,enabledHosts,fetcher=fetch){
    if(!next)fail('ลิงก์แชร์ไม่ได้พาไปหน้าสินค้า กรุณาเปิดสินค้าใน Thaimart แล้วคัดลอก URL จากแถบที่อยู่');
    target=next;continue;
   }
-  if(!response.ok){await response.body?.cancel();fail('Thaimart ไม่ส่งหน้าสินค้าที่อ่านได้ กรุณาตรวจว่าลิงก์ยังเปิดได้');}
+  if(!response.ok){await response.body?.cancel();if(response.status===403||response.status===429)fail('Thaimart จำกัดการอ่านข้อมูลอัตโนมัติในขณะนี้ หากใช้ลิงก์แชร์ ให้ลองคัดลอก URL จากแถบที่อยู่ของหน้าสินค้า หากยังไม่ได้ กรุณาลองภายหลังหรือเพิ่มสินค้าเอง');fail('Thaimart ไม่ส่งหน้าสินค้าที่อ่านได้ กรุณาตรวจว่าลิงก์ยังเปิดได้');}
   if(target.hostname!=='thaimart.com'||!response.headers.get('content-type')?.includes('text/html')){await response.body?.cancel();fail('ลิงก์แชร์นี้ยังไม่ส่งหน้าสินค้า กรุณาคัดลอก URL จากแถบที่อยู่ของหน้าสินค้า');}
   return {url:target.href,html:await boundedHTML(response)};
  }

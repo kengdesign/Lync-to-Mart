@@ -1,8 +1,6 @@
 name: Verify public Thaimart import links
 on:
   workflow_dispatch:
-  push:
-    branches: [fix/thaimart-share-links]
 permissions:
   contents: read
 jobs:
