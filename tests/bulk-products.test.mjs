@@ -56,3 +56,12 @@ test('category panel cancels without writes, closes on empty selection and can r
  all.click();open.click();assert.equal(panel.hidden,false);all.click();assert.ok(panel.hidden);
  all.click();open.click();input.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));assert.ok(panel.hidden);assert.equal(calls,0);dom.window.close();
 });
+
+test('bulk trash confirms count, locks double clicks and reports only successful deletions',async()=>{
+ const dom=new JSDOM('<div><input type="checkbox" data-select-all><input type="checkbox" data-select-product="a"><input type="checkbox" data-select-product="b"></div>'),root=dom.window.document.querySelector('div');let allow=false,calls=[],saved,notice='',release;
+ mountBulkProducts(root,{shopId:'shop',published:true,confirm:message=>{assert.match(message,/2 รายการ/);assert.match(message,/กู้คืน/);return allow;},toast:m=>notice=m,onSaved:r=>saved=r,send:async(path,body,method)=>{calls.push(path);assert.equal(method,'DELETE');if(path.endsWith('/a'))await new Promise(r=>release=r);else throw new Error('ลองอีกครั้ง');}});
+ root.querySelector('[data-select-all]').click();const button=root.querySelector('[data-bulk-trash]');assert.match(button.textContent,/\(2\)/);
+ await button.onclick();assert.equal(calls.length,0);allow=true;
+ const pending=button.onclick();assert.ok(button.disabled);assert.ok(root.querySelector('[data-select-all]').disabled);await button.onclick();assert.equal(calls.length,1);release();await pending;
+ assert.deepEqual(saved,{ids:['a'],trashed:true,count:1});assert.match(notice,/1\/2/);assert.equal(button.disabled,false);dom.window.close();
+});
