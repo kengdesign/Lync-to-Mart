@@ -43,7 +43,7 @@ async function handle(req,env,ctx){
  const url=new URL(req.url),p=url.pathname,method=req.method;
  if(p==='/api/public/live-status'&&method==='GET'){
   const cache=globalThis.caches?.default,key=new Request(url.origin+p);const hit=cache?await cache.match(key):null;if(hit)return hit;
-  let data;try{data=await liveStatus(env);}catch{data={products:{},valid_until:0};}
+  let data;try{data=await liveStatus(env);}catch{data={products:{},valid_until:0,reason:'cache_unavailable'};}
   const response=json(data,200,{'Cache-Control':'public, max-age=15, s-maxage=30'});if(cache)ctx.waitUntil(cache.put(key,response.clone()));return response;
  }
  const gate=await adminGate(req,env);if(gate)return gate;

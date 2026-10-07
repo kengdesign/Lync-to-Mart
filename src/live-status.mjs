@@ -14,10 +14,10 @@ export async function readLiveFeed(fetcher=fetch){
  const signal=AbortSignal.timeout(8000);
  for(let page=0;page<3;page++){
  const response=await fetcher(FEED+(cursor?'?cursor='+encodeURIComponent(cursor):''),{redirect:'error',signal});
- if(!response.ok)throw new Error('Live feed unavailable');
+ if(!response.ok)throw new Error('upstream_http_'+response.status);
  const reader=response.body.getReader(),decoder=new TextDecoder();let size=0,text='';
- while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>2000000){await reader.cancel();throw new Error('Live feed too large');}text+=decoder.decode(value,{stream:true});}text+=decoder.decode();
- const result=JSON.parse(text);if(result.status?.code!==0||!Array.isArray(result.data))throw new Error('Invalid live feed');
+ while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>2000000){await reader.cancel();throw new Error('upstream_too_large');}text+=decoder.decode(value,{stream:true});}text+=decoder.decode();
+ const result=JSON.parse(text);if(result.status?.code!==0||!Array.isArray(result.data))throw new Error('upstream_invalid_response');
  rows.push(...result.data);
  const next=result.pagination?.nextCursor;if(!result.pagination?.hasNext||typeof next!=='string'||!next||next.length>2000||seen.has(next))break;seen.add(next);cursor=next;
  }
@@ -27,16 +27,17 @@ export async function liveStatus(env,fetcher=fetch,now=Math.floor(Date.now()/100
  if(env.LIVE_STATUS_ENABLED==='false')return {products:{},valid_until:0};
  const row=await env.DB.prepare('SELECT * FROM live_status_cache WHERE id=1').first();
  if(!row)return {products:{},valid_until:0};
- if(row.next_check>now)return {products:row.valid_until>now?JSON.parse(row.payload):{},valid_until:row.valid_until};
+ if(row.next_check>now){const cached=JSON.parse(row.payload);return {products:row.valid_until>now?(cached.products||cached):{},valid_until:row.valid_until,...(cached.reason?{reason:cached.reason}:{})};}
  // One global refresh lease per database, regardless of visitor/shop count.
  const lease=await env.DB.prepare('UPDATE live_status_cache SET next_check=? WHERE id=1 AND next_check<=?').bind(now+120,now).run();
  if(!lease.meta.changes)return {products:{},valid_until:0};
  try{
   const products=await readLiveFeed(fetcher),valid_until=now+120;
-  await env.DB.prepare('UPDATE live_status_cache SET payload=?,valid_until=? WHERE id=1').bind(JSON.stringify(products),valid_until).run();
+  await env.DB.prepare('UPDATE live_status_cache SET payload=?,valid_until=? WHERE id=1').bind(JSON.stringify({products}),valid_until).run();
   return {products,valid_until};
- }catch{
-  await env.DB.prepare("UPDATE live_status_cache SET payload='{}',valid_until=0 WHERE id=1").run();
-  return {products:{},valid_until:0};
+ }catch(err){
+  const reason=/^upstream_(http_\d{3}|too_large|invalid_response)$/.test(err.message)?err.message:err.name==='TimeoutError'?'upstream_timeout':'upstream_unavailable';
+  await env.DB.prepare('UPDATE live_status_cache SET payload=?,valid_until=0 WHERE id=1').bind(JSON.stringify({products:{},reason})).run();
+  return {products:{},valid_until:0,reason};
  }
 }
