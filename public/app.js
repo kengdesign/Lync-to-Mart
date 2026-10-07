@@ -18,7 +18,7 @@ import {mountAccountUsage} from './account-usage.js?v=planinfo1';
 import {mountProductAnalytics} from './product-analytics.js?v=csv1';
 import {mountShopShare} from './shop-share.js?v=share1';
 import {mountCoverPosition} from './cover-position.js?v=drag2';
-import {createProductEditor} from './product-editor.js?v=sharelinks2';
+import {createProductEditor} from './product-editor.js?v=images3';
 const $=s=>document.querySelector(s),app=$('#app'),modal=$('#editor');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let storeGuard;
