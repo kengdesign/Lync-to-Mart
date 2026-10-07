@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS live_status_cache (
+ id INTEGER PRIMARY KEY CHECK(id=1),
+ payload TEXT NOT NULL DEFAULT '{}',
+ valid_until INTEGER NOT NULL DEFAULT 0,
+ next_check INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO live_status_cache(id) VALUES(1);
