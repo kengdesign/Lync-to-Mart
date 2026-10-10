@@ -26,6 +26,7 @@ export function database(path=':memory:'){
  if(!db.prepare("PRAGMA table_info(shops)").all().some(c=>c.name==='moderation_status'))db.exec(readFileSync(new URL('../migrations/0023_shop_controls.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../migrations/0024_live_status.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../migrations/0025_product_destinations.sql',import.meta.url),'utf8'));
+ if(!db.prepare("PRAGMA table_info(product_destinations)").all().some(c=>c.name==='next_check'))db.exec(readFileSync(new URL('../migrations/0026_destination_refresh.sql',import.meta.url),'utf8'));
  const wrap=(sql,args=[])=>({bind(...values){return wrap(sql,values);},async first(){return db.prepare(sql).get(...args)||null;},async all(){return {results:db.prepare(sql).all(...args)};},async run(){const r=db.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}});
  return {prepare:sql=>wrap(sql),async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results;}catch(err){db.exec('ROLLBACK');throw err;}},close(){db.close();}};
 }

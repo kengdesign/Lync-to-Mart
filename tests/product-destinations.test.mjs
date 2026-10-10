@@ -36,3 +36,23 @@ test('new import retains its verified public destination separately and mapping 
   assert.equal(await productDestination(env,'https://app.thaimart.com/p/abc'),'https://app.thaimart.com/p/abc');
  }finally{DB.close();}
 });
+
+test('legacy resolver validates identity, preserves encoded Thai slugs, caches success and backs off failures',async()=>{
+ const DB=database(),env={DB,THAIMART_LEGACY_RESOLVE:'true'},id='6aaaaaaaaaaaaaaaaaaaaaaa',source='https://thaimart.com/products/'+id;
+ let calls=0;const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://thaimart.com/api/products/'+id);assert.equal(options.redirect,'manual');return Response.json({status:{code:0},data:{id,status:'PRODUCT_STATUS_PUBLISHED',slug:encodeURIComponent('มู่ลี่ไม้ไผ่-eb9094de4e83')}});};
+ try{
+  const url=await productDestination(env,source,fetcher,1000);assert.equal(url,'https://thaimart.com/products/'+encodeURIComponent('มู่ลี่ไม้ไผ่-eb9094de4e83'));
+  assert.equal(await productDestination(env,source,fetcher,1001),url);assert.equal(calls,1);
+  const other='https://thaimart.com/products/6bbbbbbbbbbbbbbbbbbbbbbb';let failed=0;
+  const wrong=async()=>{failed++;return Response.json({status:{code:0},data:{id,status:'PRODUCT_STATUS_PUBLISHED',slug:'wrong'}});};
+  assert.equal(await productDestination(env,other,wrong,1000),other);assert.equal(await productDestination(env,other,wrong,1001),other);assert.equal(failed,1);
+  await productDestination(env,other,wrong,4601);assert.equal(failed,2);
+  assert.equal(await productDestination(env,source+'?ref=keep',fetcher),source+'?ref=keep');assert.equal(calls,1);
+ }finally{DB.close();}
+});
+
+test('API destination rejects unpublished, mismatched and unsafe slug payloads',async()=>{
+ const {verifiedProductURL}=await import('../src/product-destinations.mjs');const id='6aaaaaaaaaaaaaaaaaaaaaaa',data={id,status:'PRODUCT_STATUS_PUBLISHED',slug:'product-eb9094de4e83'};
+ assert.equal(verifiedProductURL({status:{code:0},data},id),'https://thaimart.com/products/product-eb9094de4e83');
+ for(const patch of [{id:'other'},{status:'PRODUCT_STATUS_DRAFT'},...['../x','%2f%2fevil.test','x?ref=y','%GG','%252f','..'].map(slug=>({slug}))])assert.equal(verifiedProductURL({status:{code:0},data:{...data,...patch}},id),null);
+});

@@ -31,7 +31,7 @@
       "bucket_name": "lync-to-mart-production-media"
     }
   ],
-  "vars": {
+  "vars": {"THAIMART_LEGACY_RESOLVE":"true",
     "BILLING_ENABLED": "true",
     "SIGNUP_ENABLED": "true",
     "IMPORT_HOSTS": "thaimart.com",
