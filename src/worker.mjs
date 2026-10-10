@@ -1,3 +1,4 @@
+import {rememberDestination,productDestination} from './product-destinations.mjs';
 import {liveStatus} from './live-status.mjs';
 import {adminGate} from './admin-gate.mjs';
 import {teamContext,teamShops,teamMediaRead,scopedMedia,manageTeam,teamList,inviteInfo,acceptInvite,teamAudit} from './team.mjs';
@@ -93,7 +94,7 @@ async function handle(req,env,ctx){
  }
  if(p.startsWith('/go/')&&method==='GET'){
   const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active')",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
-  const target=safeURL(product.checkout_url||product.source_url,hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
+  const target=safeURL(product.checkout_url||await productDestination(env,product.source_url),hosts(env.CHECKOUT_HOSTS));if(!target)fail('ยังไม่ได้เปิดการเชื่อมต่อร้านค้าปลายทาง',503);
   ctx.waitUntil(event(env,product.shop_id,product.id,'buy_click').catch(()=>{}));return new Response(null,{status:302,headers:{Location:target,'Cache-Control':'no-store','Referrer-Policy':'strict-origin-when-cross-origin'}});
  }
  if(p.startsWith('/media/')&&['GET','HEAD'].includes(method)){
@@ -207,10 +208,11 @@ async function handle(req,env,ctx){
    if(method==='DELETE'){await trashProduct(env,product.id);return json({ok:true,trashed:true});}
   }
   if(p==='/api/import'&&method==='POST'){
-   const b=await body(req),page=await readThaimartLink(b.url,hosts(env.IMPORT_HOSTS));
+   const b=await body(req),page=await readThaimartLink(await productDestination(env,b.url),hosts(env.IMPORT_HOSTS));
    let product;try{product=extractProduct(page.html,page.url);}catch(err){fail(err.message,422);}if(!product)fail('ไม่พบข้อมูลสินค้าที่ตรงกับลิงก์ กรุณาตรวจ URL หน้าสินค้า',422);
    const target=product.source_url;
    if(!productIdentity(target))fail('ต้นทางไม่ได้ส่งรหัสสินค้าที่ตรวจสอบได้ กรุณาใช้ลิงก์สินค้าแบบรหัสเดิมหรือลองใหม่ภายหลัง',422);
+   await rememberDestination(env,target,product.destination_url);
    const receipt=await issueImportReceipt(env,user,target);
    return json({...product,...receipt,source_url:target,status:'draft',notice:'ตรวจสอบข้อมูลและสิทธิ์ใช้รูป ก่อนยืนยันบันทึก รูปจะถูกคัดลอกมายังร้านของคุณ' });
   }
