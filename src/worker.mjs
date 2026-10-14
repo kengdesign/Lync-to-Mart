@@ -1,3 +1,4 @@
+import {stockStatus} from './stock-status.mjs';
 import {rememberDestination,productDestination} from './product-destinations.mjs';
 import {liveStatus} from './live-status.mjs';
 import {adminGate} from './admin-gate.mjs';
@@ -46,6 +47,9 @@ async function handle(req,env,ctx){
   const cache=globalThis.caches?.default,key=new Request(url.origin+p);const hit=cache?await cache.match(key):null;if(hit)return hit;
   let data;try{data=await liveStatus(env);}catch{data={products:{},valid_until:0,reason:'cache_unavailable'};}
   const response=json(data,200,{'Cache-Control':'public, max-age=15, s-maxage=30'});if(cache)ctx.waitUntil(cache.put(key,response.clone()));return response;
+ }
+ if(p==='/api/public/stock-status'&&method==='GET'){
+  const data=await stockStatus(env,(url.searchParams.get('ids')||'').split(',').filter(Boolean));return json(data,200,{'Cache-Control':'no-store'});
  }
  const gate=await adminGate(req,env);if(gate)return gate;
  if(!['GET','HEAD','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
