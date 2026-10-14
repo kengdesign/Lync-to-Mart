@@ -8,7 +8,7 @@ import {mountBillingNotice} from './billing-notice.js?v=1';
 import {mountBilling} from './billing.js?v=12';
 import {mountRegistration} from './registration.js';
 import {mountShowcaseEditor} from './showcase-editor.js?v=1';
-import {mountSellerHelp} from './seller-help.js?v=stockfaq1';
+import {mountSellerHelp} from './seller-help.js?v=stockfaq2';
 import {themes,paidThemes,effectiveTheme} from './shop-themes.js?v=1';
 import {mountCatalogExport} from './catalog-export.js?v=export1';
 import {guardStoreForm} from './store-guard.js?v=storeguard1';
