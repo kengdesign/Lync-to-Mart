@@ -9,12 +9,12 @@ export function soldOut(json,id){
  if(!active.length||!active.every(v=>v.remainingQuantity===0))return null;
  return true;
 }
-export async function stockStatus(env,requested,fetcher=fetch,now=Math.floor(Date.now()/1000)){
+export async function stockStatus(env,requested,fetcher=fetch,now=Math.floor(Date.now()/1000),scope=null){
  if(env.STOCK_STATUS_ENABLED==='false')return {products:{}};
  const ids=[...new Set(requested)];
  if(!ids.length||ids.length>12||ids.some(id=>!/^[-a-zA-Z0-9]{1,64}$/.test(id)))throw Object.assign(new Error('รายการสินค้าไม่ถูกต้อง'),{status:400});
  // Only published products in accessible shops may cause an upstream lookup.
- const {results:rows}=await env.DB.prepare(`SELECT p.id,p.source_url FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id IN (${ids.map(()=>'?').join(',')}) AND p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls m WHERE m.user_id=s.owner_id AND m.status<>'active')`).bind(...ids).all();
+ const {results:rows}=await env.DB.prepare(`SELECT p.id,p.source_url FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id IN (${ids.map(()=>'?').join(',')}) AND ${scope?"s.owner_id=? AND (?='' OR s.id=?)":"p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls m WHERE m.user_id=s.owner_id AND m.status<>'active')"}`).bind(...ids,...(scope?[scope.id,scope.team?.shop_id||'',scope.team?.shop_id||'']:[])).all();
  const links=rows.map(p=>({...p,native:productIdentity(p.source_url).split('/').pop()})).filter(p=>/^[a-f0-9]{24}$/.test(p.native||''));
  const native=[...new Set(links.map(p=>p.native))];if(!native.length)return {products:{}};
  const {results:cached}=await env.DB.prepare(`SELECT * FROM stock_status_cache WHERE product_id IN (${native.map(()=>'?').join(',')})`).bind(...native).all();

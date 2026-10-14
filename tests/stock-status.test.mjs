@@ -26,3 +26,17 @@ test('shared cache, restock, failures and shop visibility protect public status'
   const r=await worker.fetch(new Request('https://mart.test/api/public/stock-status?ids=missing'),env,{waitUntil(){}});assert.equal(r.status,200);assert.deepEqual(await r.json(),{products:{}});
  }finally{DB.close();}
 });
+test('seller stock includes own drafts and never includes another owner or another team shop',async()=>{
+ const DB=database(),env={DB};const fetcher=async()=>Response.json(payload(0));
+ try{
+  for(const u of ['alice','bob'])await DB.prepare('INSERT INTO users VALUES(?,?,?,?)').bind(u,u+'@example.test','unused','brand').run();
+  for(const [s,u] of [['a','alice'],['a2','alice'],['b','bob']]){
+   await DB.prepare('INSERT INTO shops(id,owner_id,name,slug) VALUES(?,?,?,?)').bind(s,u,s,s).run();
+   await DB.prepare('INSERT INTO products(id,shop_id,name,source_url) VALUES(?,?,?,?)').bind(s,s,s,'https://thaimart.com/products/'+id).run();
+  }
+  assert.deepEqual((await stockStatus(env,['a','a2','b'],fetcher,1000)).products,{});
+  assert.deepEqual(Object.keys((await stockStatus(env,['a','a2','b'],fetcher,1000,{id:'alice'})).products).sort(),['a','a2']);
+  assert.deepEqual(Object.keys((await stockStatus(env,['a','a2','b'],fetcher,1000,{id:'alice',team:{shop_id:'a'}})).products),['a']);
+  const response=await worker.fetch(new Request('https://mart.test/api/stock-status?ids=a'),env,{waitUntil(){}});assert.equal(response.status,401);
+ }finally{DB.close();}
+});

@@ -125,6 +125,7 @@ async function handle(req,env,ctx){
  if(p.startsWith('/api/')){
   const actor=await owner(req,env),user=await teamContext(req,env,actor),plan=await planFor(env,user);
   if(user.team&&!['GET','HEAD'].includes(method))teamRequests.set(req,{owner:user.id,actor:actor.id,target:user.team.shop_id,action:method+' '+p});
+  if(p==='/api/stock-status'&&method==='GET')return json(await stockStatus(env,(url.searchParams.get('ids')||'').split(',').filter(Boolean),fetch,now(),user),200,{'Cache-Control':'no-store'});
   if(p==='/api/team'&&method==='GET')return json(await teamList(env,actor));
   if(p==='/api/team'&&method==='POST')return json(await manageTeam(req,env,actor,await body(req)));
   if(user.impersonation&&p.startsWith('/api/account/'))fail('โหมดเข้าดูแทนไม่เปิดข้อมูลความปลอดภัยของบัญชี',403);
