@@ -14,6 +14,17 @@ test('theme entitlement, ownership, persistence, downgrade and staging-only test
  const save=(theme,user)=>call('/api/shops/'+id,'PUT',{name:'Theme test',published:true,...(theme===undefined?{}:{theme})},user);
  assert.equal((await save('midnight')).status,403);assert.equal((await save('bogus')).status,400);assert.equal((await save('classic','bob')).status,404);
  for(const plan of ['starter','growth','brand']){await DB.prepare('UPDATE users SET plan_id=? WHERE id=?').bind(plan,'alice').run();for(const theme of ['classic','midnight','ocean','sand']){assert.equal((await save(theme)).status,200);const html=await (await call('/shop/theme-test')).text();assert.match(html,new RegExp('data-theme="'+theme+'"'));assert.match(html,/store-themes.css/);assert.match(html,/rel="canonical"/);}}
+ for(const plan of ['free','starter','growth','brand']){
+ await DB.prepare('UPDATE users SET plan_id=? WHERE id=?').bind(plan,'alice').run();
+ for(const theme of ['pop','neo','peach','graphite']){
+ assert.equal((await save(theme)).status,plan==='brand'?200:403);
+ assert.equal((await call('/preview/'+id+'?theme='+theme)).status,plan==='brand'?200:403);
+ assert.equal(effectiveTheme(theme,plan),plan==='brand'?theme:'classic');
+ if(plan==='brand')assert.match(await (await call('/shop/theme-test')).text(),new RegExp('data-theme="'+theme+'"'));
+ }}
+ await DB.prepare("UPDATE users SET plan_id='growth' WHERE id='alice'").run();
+ assert.match(await (await call('/shop/theme-test')).text(),/data-theme="classic"/);
+ await DB.prepare("UPDATE users SET plan_id='brand' WHERE id='alice'").run();await save('sand');
  await save();assert.equal((await DB.prepare('SELECT theme FROM shops WHERE id=?').bind(id).first()).theme,'sand');
  await DB.prepare("UPDATE users SET plan_id='free' WHERE id='alice'").run();assert.match(await (await call('/shop/theme-test')).text(),/data-theme="classic"/);
  env.STAGING_TEST_PLAN='brand';env.STAGING_TEST_SHOP_ID=id;

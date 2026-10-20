@@ -287,3 +287,7 @@ button.create-shop-button:focus-visible{outline:3px solid #192d46;outline-offset
 .seller-stock-cell{width:110px;min-width:100px;text-align:center}
 .seller-stock-badge{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;background:#fff4db;border:1px solid #f2cc7d;color:#875000;padding:5px 8px;border-radius:7px;font-size:11px;font-weight:600}
 .seller-stock-badge>span{font-size:16px;line-height:1}.seller-stock-badge[hidden]{display:none!important}
+.theme-pop{background:#ede2ff}.theme-pop i{border-color:#7433b8;border-radius:8px}
+.theme-neo{background:#e3f49c;border-color:#202a19}.theme-neo i{background:#fffef5;border:1px solid #202a19;border-bottom-width:5px;box-shadow:2px 2px #202a19}
+.theme-peach{background:#fce1d2}.theme-peach i{background:#fffcf8;border-color:#a6442c;border-radius:8px}
+.theme-graphite{background:#171717}.theme-graphite i{background:#353129;border-color:#efcc83}

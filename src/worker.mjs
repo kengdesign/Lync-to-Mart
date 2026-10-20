@@ -16,7 +16,7 @@ import {requestReset,resetPassword} from './password-recovery.mjs';
 import {changePassword} from './account-security.mjs';
 import {discovery} from './discovery.mjs';
 import {effectivePlan,planExpression,planBindings} from './plans.mjs';
-import {validTheme,paidThemes} from '../public/shop-themes.js';
+import {validTheme,themeAllowed} from '../public/shop-themes.js';
 import {issueImportReceipt,savedProvenance} from './provenance.mjs';
 import {trashProduct,ownedTrash,restoreProduct} from './trash.mjs';
 import {accountUsage,STORAGE_LIMIT} from './usage.mjs';
@@ -85,7 +85,7 @@ async function handle(req,env,ctx){
  if(p==='/api/logout'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];if(token)await query(env,'DELETE FROM sessions WHERE token_hash=?',await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'});}
  if(p.startsWith('/preview/')&&method==='GET'){
   const user=await teamContext(req,env,await owner(req,env)),shop=await shopFor(env,p.slice(9),user),plan=await planFor(env,user);
-  const requestedTheme=url.searchParams.get('theme');if(requestedTheme!==null){if(!validTheme(requestedTheme))fail('ธีมไม่ถูกต้อง');if(requestedTheme!=='classic'&&!paidThemes(plan.id))fail('ธีมนี้สำหรับแพ็กเกจ Starter, Growth และ Brand',403);shop.theme=requestedTheme;}
+  const requestedTheme=url.searchParams.get('theme');if(requestedTheme!==null){if(!validTheme(requestedTheme))fail('ธีมไม่ถูกต้อง');if(!themeAllowed(requestedTheme,plan.id))fail('แพ็กเกจปัจจุบันไม่รองรับธีมนี้ กรุณาเลือกธีมที่ใช้ได้หรืออัปเกรดแพ็กเกจ',403);shop.theme=requestedTheme;}
   const {results:products}=await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY featured DESC,created_at DESC,id DESC',shop.id).all();
   return html(storefront({...shop,branding:plan.branding,plan_id:plan.id},products,url.origin,true,true,url.searchParams));
  }
@@ -181,7 +181,7 @@ async function handle(req,env,ctx){
    if(sm[2]==='share'&&method==='GET')return json(shopShare(shop,url.origin));
    if(!sm[2]&&method==='PUT'){const b=await body(req),name=clean(b.name,100),line=clean(b.line_url,500);if(!name)fail('กรอกชื่อร้าน');if(line&&!safeURL(line,['line.me','lin.ee']))fail('กรุณาใช้ลิงก์ LINE ที่ถูกต้อง');const images={};for(const field of ['logo_key','cover_key']){images[field]=b[field]===undefined?shop[field]:clean(b[field],150);if(images[field]&&!await scopedMedia(env,user,images[field]))fail('รูปภาพไม่ใช่ของร้านนี้',403);if(images[field]&&!await query(env,"SELECT key FROM media WHERE key=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/webp')",images[field],user.id).first())fail('กรุณาใช้รูปภาพของบัญชีนี้',403);}
     const coverY=b.cover_position_y===undefined?shop.cover_position_y:Number(b.cover_position_y);if(b.cover_position_y===null||b.cover_position_y===''||!Number.isInteger(coverY)||coverY<0||coverY>100)fail('ตำแหน่งภาพปกต้องอยู่ระหว่าง 0–100');
-    const theme=b.theme===undefined?shop.theme:b.theme;if(!validTheme(theme))fail('ธีมไม่ถูกต้อง');if(b.theme!==undefined&&theme!=='classic'&&!paidThemes(plan.id))fail('ธีมนี้สำหรับแพ็กเกจ Starter, Growth และ Brand',403);
+    const theme=b.theme===undefined?shop.theme:b.theme;if(!validTheme(theme))fail('ธีมไม่ถูกต้อง');if(b.theme!==undefined&&!themeAllowed(theme,plan.id))fail('แพ็กเกจปัจจุบันไม่รองรับธีมนี้ กรุณาเลือกธีมที่ใช้ได้หรืออัปเกรดแพ็กเกจ',403);
     await query(env,'UPDATE shops SET name=?,description=?,line_url=?,published=?,logo_key=?,cover_key=?,seo_title=?,seo_description=?,cover_position_y=?,theme=? WHERE id=? AND owner_id=?',name,clean(b.description,1500),line,b.published===true?1:0,images.logo_key,images.cover_key,b.seo_title===undefined?shop.seo_title:clean(b.seo_title,100),b.seo_description===undefined?shop.seo_description:clean(b.seo_description,200),coverY,theme,shop.id,user.id).run();return json({ok:true});}
    if(sm[2]==='products'&&method==='GET')return json((await query(env,'SELECT * FROM products WHERE shop_id=? ORDER BY featured DESC,created_at DESC,id DESC',shop.id).all()).results.map(productRecord));
    if(sm[2]==='analytics'&&method==='GET'){
