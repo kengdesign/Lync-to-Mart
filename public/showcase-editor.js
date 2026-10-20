@@ -1,4 +1,4 @@
-import {showcaseLimits,showcaseOrder,readShowcase} from './showcase-limits.js?v=1';
+import {showcaseLimits,showcaseOrder,readShowcase} from './showcase-limits.js?v=quota2';
 import {guardStoreForm} from './store-guard.js?v=storeguard1';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function optimize(file,mobile){

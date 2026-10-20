@@ -17,7 +17,7 @@ test('showcases enforce plans, media and product ownership, survive downgrade an
   await DB.prepare("INSERT INTO products(id,shop_id,name,source_url) VALUES('other','bob','other','https://thaimart.com/test')").run();
   const save=data=>call('/api/shops/alice/showcase','PUT',data);
   assert.equal((await save(payload(1))).status,403);
-  for(const [plan,max] of [['starter',1],['growth',3],['brand',5]]){
+  for(const [plan,max] of [['starter',1],['growth',3],['brand',6]]){
    await DB.prepare('UPDATE users SET plan_id=? WHERE id=?').bind(plan,'alice').run();
    assert.equal((await save(payload(max))).status,200);
    assert.equal((await save(payload(max+1))).status,403);
