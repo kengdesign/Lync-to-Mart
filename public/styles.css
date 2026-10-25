@@ -291,3 +291,7 @@ button.create-shop-button:focus-visible{outline:3px solid #192d46;outline-offset
 .theme-neo{background:#e3f49c;border-color:#202a19}.theme-neo i{background:#fffef5;border:1px solid #202a19;border-bottom-width:5px;box-shadow:2px 2px #202a19}
 .theme-peach{background:#fce1d2}.theme-peach i{background:#fffcf8;border-color:#a6442c;border-radius:8px}
 .theme-graphite{background:#171717}.theme-graphite i{background:#353129;border-color:#efcc83}
+.shop-opening{border:1px solid #efb8b7;border-top:4px solid var(--brand);scroll-margin-top:24px}
+.shop-opening h2{margin:12px 0 8px}.shop-opening p{line-height:1.7}.shop-opening .actions{margin-top:18px}
+.shop-opening button,.shop-opening .button{white-space:normal;min-height:46px;text-align:center}
+@media(max-width:600px){.shop-opening .actions>*{width:100%}}

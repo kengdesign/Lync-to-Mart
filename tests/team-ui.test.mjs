@@ -1,3 +1,4 @@
+import {renderShopOpening} from '../public/shop-opening.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
@@ -34,7 +35,7 @@ test('dashboard switches team workspace permissions and owner Brand creation quo
  const source=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
  const dom=new JSDOM('<div id="app"></div><div id="toast"></div><dialog id="editor"></dialog>',{url:'https://mart.test/dashboard',runScripts:'outside-only'}),w=dom.window;
  const imports=[...source.matchAll(/^import \{([^}]+)\}.*$/gm)].flatMap(m=>m[1].split(',').map(s=>s.trim()));for(const name of imports)w[name]=()=>{};
- w.createCatalogViews=()=>({clear(){}});w.createProductEditor=()=>({edit(){},importProduct(){}});w.themes=[{id:'classic',name:'Classic',detail:''}];w.effectiveTheme=()=> 'classic';w.paidThemes=()=>true;w.mountCoverPosition=()=>({});w.guardStoreForm=()=>({cleanup(){},canLeave:()=>true});
+ w.renderShopOpening=renderShopOpening;w.createCatalogViews=()=>({clear(){}});w.createProductEditor=()=>({edit(){},importProduct(){}});w.themes=[{id:'classic',name:'Classic',detail:''}];w.effectiveTheme=()=> 'classic';w.paidThemes=()=>true;w.mountCoverPosition=()=>({});w.guardStoreForm=()=>({cleanup(){},canLeave:()=>true});
  const own={id:'own',owner_id:'self',name:'Own',slug:'own',access:{role:'owner'},published:0},shared={id:'shared',owner_id:'other',name:'Shared',slug:'shared',access:{role:'viewer',plan:{id:'brand',name:'Brand',shops:3,products:500}},published:0};
  const calls=[];w.fetch=async(path,opts)=>{calls.push({path,opts});return {ok:true,json:async()=>path==='/api/me'?{user:{id:'self',email:'self@example.test'},shops:[own,shared],plan:{id:'brand',name:'Brand',shops:3,products:500},capabilities:{}}:path.endsWith('/products')||path.endsWith('/stats')?[]:{}};};
  try{
