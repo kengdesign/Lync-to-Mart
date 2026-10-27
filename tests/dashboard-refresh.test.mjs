@@ -17,6 +17,12 @@ test('navigation reads fresh store state and an older response cannot overwrite 
   w.eval(source.replace(/^import .*$/gm,'')+'\nwindow.reloadMart=load;');await tick();await tick();
   shop.name='Updated';await w.document.querySelector('[data-tab="store"]').onclick();
   assert.equal(w.document.querySelector('[name=name]').value,'Updated');assert.ok(w.document.querySelector('[value="open-shop"]'));
+  const form=w.document.querySelector('#store-form'),saves=[...w.document.querySelectorAll('[data-store-save]')];
+  assert.equal(saves.length,3);assert.ok(saves.every(button=>button.form===form));
+  assert.equal(w.document.querySelector('#store-publishing [data-store-save]'),null);
+  assert.ok(w.document.querySelector('#theme-preview').parentElement.querySelector('[data-store-save]'));
+  let submissions=0;form.addEventListener('submit',event=>{event.preventDefault();event.stopImmediatePropagation();submissions++;},true);
+  for(const button of saves)button.click();assert.equal(submissions,3);
   hold=true;shop.name='Old response';const old=w.reloadMart();await tick();
   shop.name='Newest';shop.published=1;await w.reloadMart();release();await old;
   assert.equal(w.document.querySelector('[name=name]').value,'Newest');assert.equal(w.document.querySelector('[value="open-shop"]'),null);assert.equal(w.document.querySelector('[name=published]').checked,true);
