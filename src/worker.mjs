@@ -1,3 +1,4 @@
+import {domainRequest} from './domains.mjs';
 import {stockStatus} from './stock-status.mjs';
 import {rememberDestination,productDestination} from './product-destinations.mjs';
 import {liveStatus} from './live-status.mjs';
@@ -125,6 +126,7 @@ async function handle(req,env,ctx){
  if(p.startsWith('/api/')){
   const actor=await owner(req,env),user=await teamContext(req,env,actor),plan=await planFor(env,user);
   if(user.team&&!['GET','HEAD'].includes(method))teamRequests.set(req,{owner:user.id,actor:actor.id,target:user.team.shop_id,action:method+' '+p});
+  if(p==='/api/domains'){if(env.DOMAIN_PREPARATION_ENABLED!=='true')fail('ระบบโดเมนยังไม่เปิดให้ใช้งาน',503);return json(await domainRequest(env,user,plan,await adminRole(env,actor),method,method==='GET'?{}:await body(req)));}
   if(p==='/api/stock-status'&&method==='GET')return json(await stockStatus(env,(url.searchParams.get('ids')||'').split(',').filter(Boolean),fetch,now(),user),200,{'Cache-Control':'no-store'});
   if(p==='/api/team'&&method==='GET')return json(await teamList(env,actor));
   if(p==='/api/team'&&method==='POST')return json(await manageTeam(req,env,actor,await body(req)));
