@@ -12,7 +12,7 @@ export async function domainRequest(env,user,plan,role,method,data={},fetcher=fe
  const items=(await env.DB.prepare('SELECT * FROM shop_domains WHERE owner_id=? ORDER BY created_at DESC').bind(user.id).all()).results;
  if(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mart_domain_pilot'").first()){
   const slot=await env.DB.prepare('SELECT domain_id,provider_id,enabled FROM mart_domain_pilot').first();
-  for(const item of items)if(item.id===slot?.domain_id){item.provider_created=!!slot.provider_id;item.gateway_enabled=slot.enabled===1;}
+  for(const item of items)if(item.id===slot?.domain_id){item.connection_reserved=true;item.provider_created=!!slot.provider_id;item.gateway_enabled=slot.enabled===1;}
  }
  return {limit:role==='owner'?null:limit,connection_enabled:false,provider_diagnostics:role==='owner'&&env.APP_ENV==='staging',items};
  };
