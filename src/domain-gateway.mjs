@@ -29,7 +29,7 @@ export async function serveDomain(req,{resolveDomain,authorizeResource,service})
  if(result.status>=300 && result.status<400 && result.headers.has('location')){
   let target;try{target=new URL(result.headers.get('location'),url);}catch{return deny();}
   if(target.origin===url.origin && target.pathname!==shopPath)return deny();
-  if(target.origin!==url.origin && resource!=='product')return deny();
+  if(target.origin!==url.origin && (resource!=='product'||target.protocol!=='https:'||target.username||target.password||target.port||!['thaimart.com','app.thaimart.com'].includes(target.hostname)))return deny();
  }
  return response;
 }

@@ -12,6 +12,7 @@ export function domainProvider(env,fetcher=fetch){
  }
  const idPath=id=>{if(!/^[a-f0-9-]{32,36}$/.test(id||''))throw new Error('Invalid provider resource ID');return '/'+id;};
  return {
+  createPilot:()=>call('', 'POST', {hostname:'thaimart.logintimate.com',ssl:{method:'http',type:'dv',settings:{min_tls_version:'1.2'}}}),
   fallback:()=>call('/fallback_origin'),
   quota:()=>call('/quota'),
   get:id=>call(idPath(id)),

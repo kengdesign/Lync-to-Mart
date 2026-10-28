@@ -8,9 +8,18 @@ export function normalizeDomain(value){
 export async function domainRequest(env,user,plan,role,method,data={},fetcher=fetch){
  if(user.team||user.impersonation)fail('เฉพาะเจ้าของบัญชีจัดการโดเมนได้',403);
  const limit=role==='owner'?100000:domainLimit(plan.id);
- const list=async()=>({limit:role==='owner'?null:limit,connection_enabled:false,provider_diagnostics:role==='owner'&&env.APP_ENV==='staging',items:(await env.DB.prepare('SELECT * FROM shop_domains WHERE owner_id=? ORDER BY created_at DESC').bind(user.id).all()).results});
+ const list=async()=>{
+ const items=(await env.DB.prepare('SELECT * FROM shop_domains WHERE owner_id=? ORDER BY created_at DESC').bind(user.id).all()).results;
+ if(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mart_domain_pilot'").first()){
+  const slot=await env.DB.prepare('SELECT domain_id,provider_id,enabled FROM mart_domain_pilot').first();
+  for(const item of items)if(item.id===slot?.domain_id){item.provider_created=!!slot.provider_id;item.gateway_enabled=slot.enabled===1;}
+ }
+ return {limit:role==='owner'?null:limit,connection_enabled:false,provider_diagnostics:role==='owner'&&env.APP_ENV==='staging',items};
+ };
  if(method==='GET')return list();
- if(method==='DELETE'){await env.DB.prepare('DELETE FROM shop_domains WHERE id=? AND owner_id=?').bind(data.id||'',user.id).run();return list();}
+ if(method==='DELETE'){
+ if(await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mart_domain_pilot'").first()){if(await env.DB.prepare('SELECT hostname FROM mart_domain_pilot WHERE domain_id=?').bind(data.id||'').first())fail('ต้องถอดการเชื่อมต่อ Cloudflare ก่อนลบรายการที่เตรียมไว้',409);}
+ await env.DB.prepare('DELETE FROM shop_domains WHERE id=? AND owner_id=?').bind(data.id||'',user.id).run();return list();}
  if(data.action==='check'){
   const row=await env.DB.prepare('SELECT * FROM shop_domains WHERE id=? AND owner_id=?').bind(data.id||'',user.id).first();if(!row)fail('ไม่พบโดเมน',404);
   const now=Math.floor(Date.now()/1000);

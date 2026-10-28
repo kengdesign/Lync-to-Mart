@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import gateway,{resolvePilot,authorizePilotResource} from '../src/domain-gateway-worker.mjs';
+import {pilotSchema} from '../src/domain-pilot.mjs';
+import {database} from '../scripts/adapter.mjs';
+import {readFileSync} from 'node:fs';
+test('gateway deployment is isolated to new zone and new worker',()=>{const config=JSON.parse(readFileSync(new URL('../wrangler.domain-gateway.staging.jsonc',import.meta.url)));assert.equal(config.name,'lync-to-mart-domain-gateway-staging');assert.deepEqual(config.routes,[{pattern:'*/*',zone_id:'f0b5797bfb2571e56c55b7dedd8fbcbc'}]);assert.equal(config.services[0].service,'lync-to-mart-staging');assert.equal(config.workers_dev,false);});
+test('pilot gateway rejects unknown domains and disabled pilot before DB access',async()=>{for(const [env,host] of [[{APP_ENV:'staging',MART_PILOT_ENABLED:'true'},'unknown.example'],[{APP_ENV:'production',MART_PILOT_ENABLED:'true'},'thaimart.logintimate.com'],[{APP_ENV:'staging',MART_PILOT_ENABLED:'false'},'thaimart.logintimate.com']])assert.equal(await resolvePilot(env,host),null);});
+test('pilot uses verified ownership, paid plan and current moderation; isolates products',async()=>{const DB=database(),env={DB,APP_ENV:'staging',MART_PILOT_ENABLED:'true'};try{
+ await DB.prepare('INSERT INTO users VALUES(?,?,?,?)').bind('pilot-owner','pilot@example.invalid','unused','starter').run();
+ await DB.prepare("INSERT INTO shops(id,owner_id,name,slug,published) VALUES('pilot-shop','pilot-owner','Pilot','pilot',1)").run();
+ await DB.prepare("INSERT INTO shop_domains VALUES('d','pilot-owner','pilot-shop','thaimart.logintimate.com','proof','verified',1,1)").run();
+ await DB.prepare(pilotSchema).run();await DB.prepare("INSERT INTO mart_domain_pilot VALUES('thaimart.logintimate.com','d','12345678123412341234123456789012',1,1,1)").run();
+ const row=await resolvePilot(env,'thaimart.logintimate.com');assert.equal(row.slug,'pilot');
+ assert.equal(await authorizePilotResource(env,row,'product','/go/other'),false);
+ await DB.prepare("UPDATE users SET plan_id='free' WHERE id='pilot-owner'").run();assert.equal(await resolvePilot(env,'thaimart.logintimate.com'),null);
+ await DB.prepare("UPDATE users SET plan_id='brand' WHERE id='pilot-owner'").run();
+ await DB.prepare("UPDATE shops SET moderation_status='banned' WHERE id='pilot-shop'").run();assert.equal(await resolvePilot(env,'thaimart.logintimate.com'),null);
+ }finally{DB.close();}});
+test('health probe is exact-host only and contains no configuration secrets',async()=>{const res=await gateway.fetch(new Request('https://shops.lynctomart.com/__mart_gateway_health'),{});assert.equal(res.status,200);assert.equal((await res.json()).service,'mart-domain-gateway');assert.equal((await gateway.fetch(new Request('https://unknown.example/__mart_gateway_health'),{})).status,404);});
