@@ -1,4 +1,4 @@
-import {mountDomains} from './domains.js?v=6';
+import {mountDomains} from './domains.js?v=7';
 import {renderShopOpening} from './shop-opening.js?v=1';
 import {mountSellerStock} from './seller-stock.js?v=1';
 let sellerStockCleanup=()=>{};
