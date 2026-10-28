@@ -8,7 +8,7 @@ export function normalizeDomain(value){
 export async function domainRequest(env,user,plan,role,method,data={},fetcher=fetch){
  if(user.team||user.impersonation)fail('เฉพาะเจ้าของบัญชีจัดการโดเมนได้',403);
  const limit=role==='owner'?100000:domainLimit(plan.id);
- const list=async()=>({limit:role==='owner'?null:limit,connection_enabled:false,items:(await env.DB.prepare('SELECT * FROM shop_domains WHERE owner_id=? ORDER BY created_at DESC').bind(user.id).all()).results});
+ const list=async()=>({limit:role==='owner'?null:limit,connection_enabled:false,provider_diagnostics:role==='owner'&&env.APP_ENV==='staging',items:(await env.DB.prepare('SELECT * FROM shop_domains WHERE owner_id=? ORDER BY created_at DESC').bind(user.id).all()).results});
  if(method==='GET')return list();
  if(method==='DELETE'){await env.DB.prepare('DELETE FROM shop_domains WHERE id=? AND owner_id=?').bind(data.id||'',user.id).run();return list();}
  if(data.action==='check'){
