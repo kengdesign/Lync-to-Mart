@@ -1,0 +1,10 @@
+{
+  "providerZone": "",
+  "providerZoneId": "",
+  "cnameTarget": "",
+  "fallbackOrigin": "",
+  "gatewayWorker": "lync-to-mart-domain-gateway-staging",
+  "testHostname": "thaimart.logintimate.com",
+  "maxHostnames": 1,
+  "availableCapacity": null
+}
