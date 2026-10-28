@@ -1,3 +1,4 @@
+import {canonicalDomain} from './domain-names.mjs';
 // Intentionally not wired to public routes until durable capacity/lifecycle gates exist.
 const ZONE='f0b5797bfb2571e56c55b7dedd8fbcbc';
 export function domainProvider(env,fetcher=fetch){
@@ -12,6 +13,8 @@ export function domainProvider(env,fetcher=fetch){
  }
  const idPath=id=>{if(!/^[a-f0-9-]{32,36}$/.test(id||''))throw new Error('Invalid provider resource ID');return '/'+id;};
  return {
+  create:hostname=>call('', 'POST', {hostname:canonicalDomain(hostname),ssl:{method:'http',type:'dv',settings:{min_tls_version:'1.2'}}}),
+  find:hostname=>call('?hostname='+encodeURIComponent(canonicalDomain(hostname))+'&per_page=50'),
   createPilot:()=>call('', 'POST', {hostname:'thaimart.logintimate.com',ssl:{method:'http',type:'dv',settings:{min_tls_version:'1.2'}}}),
   fallback:()=>call('/fallback_origin'),
   quota:()=>call('/quota'),

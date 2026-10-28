@@ -1,3 +1,5 @@
+import {domainAdminRequest} from './domain-admin.mjs';
+import {managedDomainRequest,cleanupDomains} from './domain-managed.mjs';
 import {pilotRequest} from './domain-pilot.mjs';
 import {providerDiagnostics} from './domain-diagnostics.mjs';
 import {domainRequest} from './domains.mjs';
@@ -97,7 +99,7 @@ async function handle(req,env,ctx){
   if(!s)return html(page('ไม่พบร้าน','<main class="missing"><h1>ร้านนี้ยังไม่เปิดให้เข้าชม</h1><p>ตรวจสอบลิงก์หรือติดต่อเจ้าของร้าน</p></main>'),404);
   const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY featured DESC,created_at DESC,id DESC",s.id).all();
   ctx.waitUntil(event(env,s.id,null,'view').catch(()=>{}));
-  return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams,req.headers.get('X-Mart-Storefront-Root')==='1'&&url.hostname==='thaimart.logintimate.com'?'/':null));
+  return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams,req.headers.get('X-Mart-Storefront-Root')==='1'&&(url.hostname==='thaimart.logintimate.com'||(env.MART_DOMAINS_ENABLED==='true'&&await env.DB.prepare("SELECT hostname FROM domain_registry WHERE hostname=? AND state='active' AND paused=0").bind(url.hostname).first()))?'/':null));
  }
  if(p.startsWith('/go/')&&method==='GET'){
   const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active')",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
@@ -128,6 +130,9 @@ async function handle(req,env,ctx){
  if(p.startsWith('/api/')){
   const actor=await owner(req,env),user=await teamContext(req,env,actor),plan=await planFor(env,user);
   if(user.team&&!['GET','HEAD'].includes(method))teamRequests.set(req,{owner:user.id,actor:actor.id,target:user.team.shop_id,action:method+' '+p});
+  if(p==='/api/domains/admin')return json(await domainAdminRequest(env,user,await adminRole(env,actor),method,method==='GET'?{}:await body(req)),200,{'Cache-Control':'no-store'});
+  if(p==='/api/domains'&&env.MART_DOMAINS_ENABLED==='true')return json(await managedDomainRequest(env,user,method,method==='GET'?{}:await body(req)),200,{'Cache-Control':'no-store'});
+  if(p==='/api/domains/pilot'&&(env.MART_DOMAINS_ENABLED==='true'||env.MART_PILOT_ENABLED==='false'))fail('ใช้ขั้นตอนเชื่อมโดเมนใหม่แทนระบบทดสอบเดิม',409);
   if(p==='/api/domains/pilot')return json(await pilotRequest(env,user,await adminRole(env,actor),method,method==='POST'?await body(req):{}),200,{'Cache-Control':'no-store'});
   if(p==='/api/domains/provider-status'){return json(await providerDiagnostics(env,user,await adminRole(env,actor),method),200,{'Cache-Control':'no-store'});}
   if(p==='/api/domains'){if(env.DOMAIN_PREPARATION_ENABLED!=='true')fail('ระบบโดเมนยังไม่เปิดให้ใช้งาน',503);return json(await domainRequest(env,user,plan,await adminRole(env,actor),method,method==='GET'?{}:await body(req)));}
@@ -152,7 +157,7 @@ async function handle(req,env,ctx){
   if(p==='/api/account/sessions'&&method==='GET'){const row=await query(env,'SELECT COUNT(*) AS active FROM sessions WHERE user_id=? AND expires>?',user.id,now()).first();return json({active:row.active,others:Math.max(0,row.active-1)});}
   if(p==='/api/account/logout-others'&&method==='POST'){const token=req.headers.get('cookie')?.match(/(?:^|;\s*)mart_session=([^;]+)/)?.[1];await query(env,'DELETE FROM sessions WHERE user_id=? AND token_hash<>?',user.id,await hash(token)).run();return json({ok:true});}
   if(p==='/api/account/password'&&method==='POST'){await changePassword(env,user,await body(req));return json({ok:true},200,{'Set-Cookie':`mart_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${url.protocol==='https:'?'; Secure':''}`});}
-  if(p==='/api/me'&&method==='GET'){const shops=await teamShops(env,user);return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,environment:env.APP_ENV,plan,shops,capabilities:{import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
+  if(p==='/api/me'&&method==='GET'){const shops=await teamShops(env,user);return json({user:{id:user.id,email:user.email},impersonation:user.impersonation||null,environment:env.APP_ENV,plan,shops,capabilities:{domains:env.MART_DOMAINS_ENABLED==='true',domain_access:plan.id!=='free'||await adminRole(env,actor)==='owner',import:!!env.IMPORT_HOSTS,checkout:!!env.CHECKOUT_HOSTS,ai:false,billing:billingReady(env)}});}
   if(p==='/api/usage'&&method==='GET')return json(await accountUsage(env,user,plan));
   if(p==='/api/plans'&&method==='GET')return json((await env.DB.prepare('SELECT * FROM plans ORDER BY monthly').all()).results);
   if(p==='/api/shops'&&method==='POST'){
@@ -278,5 +283,5 @@ async function saveImage(source,env,user,video=false){
  const reserved=await query(env,'INSERT INTO media(key,owner_id,mime,size) SELECT ?,?,?,? WHERE (SELECT COALESCE(SUM(size),0) FROM media WHERE owner_id=?)+?<=?',key,user.id,mime,size,user.id,size,STORAGE_LIMIT).run();if(!reserved.meta.changes)fail('พื้นที่รูปภาพและวิดีโอเต็มแล้ว',409);
  try{await env.MEDIA.put(key,bytes,{httpMetadata:{contentType:mime}});if(user.team)await query(env,'INSERT INTO team_media(key,shop_id) VALUES(?,?)',key,user.team.shop_id).run();}catch(err){await query(env,'DELETE FROM media WHERE key=?',key).run();throw err;}return key;
 }
-export default {async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);const audit=teamRequests.get(req);if(audit&&response.ok)await teamAudit(env,audit.owner,audit.actor,audit.action,audit.target);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com https://cf.shopee.co.th https://images.mango-prod.siammakro.cloud; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};
+export default {async scheduled(event,env,ctx){ctx.waitUntil(cleanupDomains(env));},async fetch(req,env,ctx){let response;try{response=await handle(req,env,ctx);const audit=teamRequests.get(req);if(audit&&response.ok)await teamAudit(env,audit.owner,audit.actor,audit.action,audit.target);}catch(err){if(!err.status)console.error('Request failed',err.message);response=json({error:err.status?err.message:'ระบบขัดข้อง กรุณาลองอีกครั้ง'},err.status||500);}const out=new Response(response.body,response);out.headers.set('X-Content-Type-Options','nosniff');out.headers.set('Referrer-Policy','strict-origin-when-cross-origin');out.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: https://img-cdn.thaimart.com https://cf.shopee.co.th https://images.mango-prod.siammakro.cloud; style-src 'self'; font-src 'self' https://fonts.gstatic.com; media-src 'self'; frame-src https://www.youtube-nocookie.com; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return out;}};
 

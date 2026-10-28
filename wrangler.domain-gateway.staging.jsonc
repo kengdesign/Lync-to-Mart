@@ -8,5 +8,5 @@
   "routes": [{"pattern":"*/*","zone_id":"f0b5797bfb2571e56c55b7dedd8fbcbc"}],
   "services": [{"binding":"MART","service":"lync-to-mart-staging"}],
   "d1_databases": [{"binding":"DB","database_name":"lync-to-mart-staging","database_id":"2565c489-f0d4-43a9-8ea2-1bde5bb6fde3"}],
-  "vars": {"APP_ENV":"staging","MART_PILOT_ENABLED":"true","STAGING_ADMIN_SHOP_ID":"e635859a-7587-4568-b0c6-7a707f7e62fa","STAGING_TEST_SHOP_ID":"e635859a-7587-4568-b0c6-7a707f7e62fa","STAGING_TEST_PLAN":"free"}
+  "vars": {"MART_DOMAINS_ENABLED":"true","APP_ENV":"staging","MART_PILOT_ENABLED":"true","STAGING_ADMIN_SHOP_ID":"e635859a-7587-4568-b0c6-7a707f7e62fa","STAGING_TEST_SHOP_ID":"e635859a-7587-4568-b0c6-7a707f7e62fa","STAGING_TEST_PLAN":"free"}
 }

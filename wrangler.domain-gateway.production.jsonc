@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lync-to-mart-domain-gateway-production",
+  "main": "src/domain-gateway-worker.mjs",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "*/*",
+      "zone_id": "f0b5797bfb2571e56c55b7dedd8fbcbc"
+    }
+  ],
+  "services": [
+    {
+      "binding": "MART",
+      "service": "lync-to-mart-production"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lync-to-mart-production",
+      "database_id": "d63c6432-2386-403a-a8b3-c2522f597f13"
+    }
+  ],
+  "vars": {
+    "APP_ENV": "production",
+    "MART_DOMAINS_ENABLED": "true",
+    "MART_PILOT_ENABLED": "false"
+  }
+}
