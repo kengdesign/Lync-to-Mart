@@ -5,10 +5,10 @@ import {catalogPage,catalogSorts,catalogURL as baseCatalogURL} from './catalog.m
 import {positionClass} from '../public/cover-position.js';
 import {escape as e} from './security.mjs';
 import {productRecord,priceLabel,priceRange,imageURL,plainHTML} from './content.mjs';
-export function storefront(shop,rows,origin,staging=true,preview=false,params=new URLSearchParams()){
+export function storefront(shop,rows,origin,staging=true,preview=false,params=new URLSearchParams(),publicPath=null){
  const previewTheme=preview&&params.has('theme')?effectiveTheme(shop.theme,shop.plan_id):null;
  const catalogURL=(path,options)=>{const result=baseCatalogURL(path,options);return previewTheme?result+(result.includes('?')?'&':'?')+'theme='+previewTheme:result;};
- const products=rows.map(productRecord),catalog=catalogPage(products,params),shopPath='/shop/'+encodeURIComponent(shop.slug),path=preview?'/preview/'+encodeURIComponent(shop.id):shopPath,canonical=origin+baseCatalogURL(shopPath,catalog),href=page=>catalogURL(path,{...catalog,page});
+ const products=rows.map(productRecord),catalog=catalogPage(products,params),shopPath=publicPath==='/'&&!preview?'/':'/shop/'+encodeURIComponent(shop.slug),path=preview?'/preview/'+encodeURIComponent(shop.id):shopPath,canonical=origin+baseCatalogURL(shopPath,catalog),href=page=>catalogURL(path,{...catalog,page});
  const activeFilters=catalog.q||catalog.category?`<div class="catalog-active-filters" aria-label="ตัวกรองที่ใช้อยู่"><span>กำลังกรอง:</span>${catalog.q?`<a data-catalog-link href="${e(catalogURL(path,{category:catalog.category,sort:catalog.sort}))}" aria-label="${e('ล้างคำค้น '+catalog.q)}">คำค้น: ${e(catalog.q)} <span aria-hidden="true">×</span></a>`:''}${catalog.category?`<a data-catalog-link href="${e(catalogURL(path,{q:catalog.q,sort:catalog.sort}))}" aria-label="${e('ล้างหมวดหมู่ '+catalog.category)}">หมวดหมู่: ${e(catalog.category)} <span aria-hidden="true">×</span></a>`:''}<a data-catalog-link class="catalog-clear" href="${e(catalogURL(path,{sort:catalog.sort}))}">ล้างการค้นหาและตัวกรอง</a></div>`:'';
  const title=shop.seo_title||shop.name,description=shop.seo_description||shop.description||'เลือกชมสินค้าจาก '+shop.name;
  const categories=[...new Set(products.map(p=>p.category).filter(Boolean))];

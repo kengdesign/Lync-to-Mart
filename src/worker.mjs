@@ -97,7 +97,7 @@ async function handle(req,env,ctx){
   if(!s)return html(page('ไม่พบร้าน','<main class="missing"><h1>ร้านนี้ยังไม่เปิดให้เข้าชม</h1><p>ตรวจสอบลิงก์หรือติดต่อเจ้าของร้าน</p></main>'),404);
   const {results:products}=await query(env,"SELECT * FROM products WHERE shop_id=? AND status='published' ORDER BY featured DESC,created_at DESC,id DESC",s.id).all();
   ctx.waitUntil(event(env,s.id,null,'view').catch(()=>{}));
-  return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams));
+  return html(storefront(s,products,url.origin,env.APP_ENV!=='production',false,url.searchParams,req.headers.get('X-Mart-Storefront-Root')==='1'&&url.hostname==='thaimart.logintimate.com'?'/':null));
  }
  if(p.startsWith('/go/')&&method==='GET'){
   const product=await query(env,"SELECT p.* FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.id=? AND p.status='published' AND s.published=1 AND s.moderation_status='active' AND NOT EXISTS(SELECT 1 FROM member_controls mc WHERE mc.user_id=s.owner_id AND mc.status<>'active')",p.slice(4)).first();if(!product)fail('ไม่พบสินค้า',404);
