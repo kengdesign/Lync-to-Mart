@@ -4,7 +4,8 @@ export function domainProvider(env,fetcher=fetch){
  if(env.MART_DOMAIN_ZONE_ID!==ZONE || !env.MART_DOMAIN_API_TOKEN)throw new Error('Domain provider configuration unavailable');
  const base='https://api.cloudflare.com/client/v4/zones/'+ZONE+'/custom_hostnames';
  async function call(path='',method='GET',body){
-  let res;try{res=await fetcher(base+path,{method,redirect:'error',headers:{Authorization:'Bearer '+env.MART_DOMAIN_API_TOKEN,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});}catch{throw Object.assign(new Error('Domain provider request incomplete; reconcile before retrying'),{kind:'network'});}
+  let res;try{res=await fetcher(base+path,{method,redirect:'manual',headers:{Authorization:'Bearer '+env.MART_DOMAIN_API_TOKEN,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});}catch{throw Object.assign(new Error('Domain provider request incomplete; reconcile before retrying'),{kind:'network'});}
+  if(res.status>=300&&res.status<400)throw Object.assign(new Error('Unexpected provider redirect'),{kind:'api',status:res.status,codes:[]});
   let data;try{data=await res.json();}catch{throw Object.assign(new Error('Invalid domain provider response'),{kind:'invalid_response',status:res.status});}
   if(!res.ok || data.success!==true)throw Object.assign(new Error('Domain provider rejected request'),{kind:'api',status:res.status,codes:Array.isArray(data.errors)?data.errors.map(e=>e.code).filter(Number.isSafeInteger).slice(0,5):[]});
   return data.result;

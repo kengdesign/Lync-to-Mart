@@ -7,7 +7,7 @@ test('provider rejects any other zone before network access',()=>assert.throws((
 test('inventory is restricted to new zone and GET',async()=>{
  const calls=[];const provider=domainProvider(env,async(url,options)=>{calls.push([url,options]);return Response.json({success:true,result:{}});});
  await provider.fallback();await provider.quota();assert.equal(calls.length,2);
- for(const [url,options] of calls){assert.ok(url.startsWith('https://api.cloudflare.com/client/v4/zones/'+env.MART_DOMAIN_ZONE_ID+'/custom_hostnames/'));assert.equal(options.method,'GET');assert.equal(options.redirect,'error');}
+ for(const [url,options] of calls){assert.ok(url.startsWith('https://api.cloudflare.com/client/v4/zones/'+env.MART_DOMAIN_ZONE_ID+'/custom_hostnames/'));assert.equal(options.method,'GET');assert.equal(options.redirect,'manual');}
 });
 test('deletion requires recorded ownership and matching remote hostname',async()=>{
  const calls=[];const provider=domainProvider(env,async(url,options)=>{calls.push(options.method);return Response.json({success:true,result:{hostname:'shop.customer.com'}});});
@@ -19,4 +19,11 @@ test('deletion requires recorded ownership and matching remote hostname',async()
 test('errors never reflect provider secrets or response text',async()=>{
  const provider=domainProvider(env,async()=>Response.json({success:false,errors:[{message:env.MART_DOMAIN_API_TOKEN}]},{status:403}));
  await assert.rejects(provider.quota(),err=>err.message==='Domain provider rejected request'&&!err.message.includes(env.MART_DOMAIN_API_TOKEN));
+});
+test('Workers-compatible redirect mode rejects redirects without forwarding credentials',async()=>{
+ const env={MART_DOMAIN_ZONE_ID:'f0b5797bfb2571e56c55b7dedd8fbcbc',MART_DOMAIN_API_TOKEN:'secret'};
+ let calls=0;
+ const provider=domainProvider(env,async(url,options)=>{calls++;assert.equal(options.redirect,'manual');return new Response(null,{status:302,headers:{Location:'https://example.com'}});});
+ await assert.rejects(provider.fallback(),e=>e.status===302);
+ assert.equal(calls,1);
 });
