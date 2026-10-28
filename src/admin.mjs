@@ -1,3 +1,4 @@
+import {domainReport,attachShopDomains} from './admin-domains.mjs';
 import {recoveryLimit} from './password-recovery.mjs';
 import {teamList,teamLimit} from './team.mjs';
 import {adminBackup} from './admin-backup.mjs';
@@ -30,6 +31,7 @@ export async function adminData(env,user,url){
   const data=await teamList(env,owner);
   return {role,view,shop,owner_email:owner.email,limit:data.limit,used:data.members.filter(m=>m.enabled).length,members:data.members.filter(m=>m.grants[shop.id]).map(m=>({id:m.id,email:m.email,status:m.status,expires:m.expires,enabled:m.enabled,grant:m.grants[shop.id]}))};
  }
+ if(view==='domains')return {role,view,...await domainReport(env,url)};
  if(view==='backup')return adminBackup(env,role);
  if(view==='billing')return adminBilling(env,role,url);
  if(!['overview','users','shops','audit'].includes(view))throw Object.assign(new Error('ไม่พบรายการ'),{status:404});
@@ -76,6 +78,7 @@ export async function adminData(env,user,url){
   const teams=(await env.DB.prepare(`SELECT owner_id,grants_json FROM shop_team WHERE owner_id IN (${owners.map(()=>'?').join(',')}) AND (status='active' OR (status='pending' AND expires>unixepoch())) ORDER BY created_at,rowid`).bind(...owners).all()).results;
   for(const r of rows){r.effective_plan=plans.find(p=>p.id===r.owner_id)?.plan||'free';r.team_limit=teamLimit(r.effective_plan);const account=teams.filter(t=>t.owner_id===r.owner_id);r.team_used=Math.min(account.length,r.team_limit);r.team_count=account.filter(t=>JSON.parse(t.grants_json)[r.id]).length;}
  }
+ await attachShopDomains(env,rows);
  return {role,view,rows,total,page,pages:Math.max(1,Math.ceil(total/25))};
 }
 
