@@ -52,7 +52,7 @@ test('Growth to Brand separates 491 due today from optional 990 next renewal',as
 });
 test('downgrade confirms next-period price, preserves current plan and exposes cancel request',async t=>{
  const dom=new JSDOM('<section></section>',{url:'https://mart.test/'});globalThis.location=dom.window.location;t.after(()=>delete globalThis.location);const root=dom.window.document.querySelector('section'),calls=[];
- const quote={from:'brand',plan:'growth',period:'monthly',amount:49900,effective_at:1793192614};
+ const quote={from:'brand',plan:'growth',period:'monthly',amount:49900,effective_at:Math.floor(Date.now()/1000)+86400*30};
  let data={ready:true,eligible:true,subscription:{status:'active',plan:'brand',period:'monthly',paid_until:quote.effective_at,cancel_at_period_end:false}};
  await mountBilling({root,items:[{id:'starter',monthly:19900},{id:'growth',monthly:49900},{id:'brand',monthly:99000}],api:async()=>data,send:async(path,input)=>{calls.push({path,input});if(path==='/billing/downgrade-preview')return quote;data={...data,downgrade:{...quote,status:'scheduled'}};return data;}});
  root.querySelector('[data-downgrade-preview]').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls.length,1);assert.match(root.querySelector('[data-downgrade-quote]').textContent,/วันนี้ไม่เรียกเก็บเงินเพิ่ม/);assert.match(root.querySelector('[data-downgrade-quote]').textContent,/฿499/);
