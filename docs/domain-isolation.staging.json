@@ -1,0 +1,10 @@
+{
+  "providerZone": "lynctomart.com",
+  "providerZoneId": "f0b5797bfb2571e56c55b7dedd8fbcbc",
+  "cnameTarget": "shops.lynctomart.com",
+  "fallbackOrigin": "fallback.lynctomart.com",
+  "gatewayWorker": "lync-to-mart-domain-gateway-staging",
+  "testHostname": "thaimart.logintimate.com",
+  "maxHostnames": 1,
+  "availableCapacity": null
+}
