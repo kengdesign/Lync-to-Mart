@@ -1,6 +1,6 @@
 // Public storefront boundary. Caller must resolve only activated, entitled domains.
 // No browser authentication headers are forwarded to the Mart service.
-const assets=new Set(['/styles.css','/store-themes.css','/storefront.js','/product-lightbox.js','/live-badges.js','/stock-badges.js','/favicon.svg']);
+const assets=new Set(['/styles.css','/store-themes.css','/storefront.js','/campaign-video.js','/video.js','/product-lightbox.js','/live-badges.js','/stock-badges.js','/favicon.svg']);
 const deny=()=>new Response('Not found',{status:404,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 export async function serveDomain(req,{resolveDomain,authorizeResource,service}) {
  const url=new URL(req.url);

@@ -14,10 +14,13 @@ test('plan comparison uses API prices and preserves usage while switching period
  let requests=0,mounts=0;
  const run=new Function('$','api','state','esc','money','paidThemes','mountAccountUsage','toast','mountBilling','send',code+';return plans();');
  await run(s=>dom.window.document.querySelector(s),async()=>{requests++;return items;},{tab:'plans',plan:{id:'brand',staging_test:true}},s=>s,c=>'฿'+(c/100).toLocaleString('th-TH',{maximumFractionDigits:2}),()=>true,({root})=>{mounts++;root.textContent='usage';},e=>{throw Error(e);},()=>{},()=>{});
+ assert.match(root.querySelectorAll('.plan-upcoming')[1].textContent,/1 วิดีโอ/);
+ assert.match(root.querySelectorAll('.plan-upcoming')[2].textContent,/2 วิดีโอ/);
  const usage=root.querySelector('#account-usage');
  const buttons=root.querySelectorAll('[data-plan-period]');
  buttons[1].focus();buttons[1].click();
  const prices=[...root.querySelectorAll('[data-plan-price]')];
+ assert.match(root.querySelectorAll('.plan-upcoming')[3].textContent,/2 วิดีโอ/);
  assert.match(prices[1].textContent,/฿1,990/);
  assert.match(prices[1].textContent,/฿165.83/);
  assert.match(prices[1].textContent,/฿398/);

@@ -1,3 +1,4 @@
+import {campaignVideo,videoPositions} from '../public/campaign-video.js';
 import {scopedMedia} from './team.mjs';
 import {showcaseLimits,showcaseOrder,readShowcase} from '../public/showcase-limits.js';
 import {escape as e} from './security.mjs';
@@ -10,6 +11,17 @@ export async function saveShowcase(env,user,shop,plan,data){
  if((data.featured&&!limit.featured)||(data.newest&&!limit.newest))fail('แพ็กเกจนี้ยังไม่รองรับแถวสินค้าที่เลือก',403);
  if(!Array.isArray(data.order)||data.order.length!==3||new Set(data.order).size!==3||data.order.some(x=>!showcaseOrder.includes(x)))fail('ลำดับส่วนแสดงผลไม่ถูกต้อง');
  if(!limit.reorder&&data.order.join()!==showcaseOrder.join())fail('จัดลำดับส่วนแสดงผลได้ใน Brand',403);
+ const existing=readShowcase(shop.showcase_json);
+ const rows=data.videos===undefined?(existing.videos||[]):data.videos;
+ if(!Array.isArray(rows)||rows.length>limit.videos)fail('จำนวนวิดีโอเกินสิทธิ์แพ็กเกจ',403);
+ const videos=rows.map(row=>{
+  if(!row||typeof row.enabled!=='boolean'||typeof row.title!=='string'||row.title.length>100||!['full','left','right'].includes(row.align)||!['auto','landscape','portrait','square'].includes(row.ratio))fail('ข้อมูลวิดีโอไม่ถูกต้อง');
+  if(!limit.videoAlign&&row.align!=='full')fail('จัดวิดีโอซ้าย–ขวาได้ใน Growth และ Brand',403);
+  const parsed=campaignVideo(row.url);if(!parsed)fail('ใช้ลิงก์วิดีโอเต็มหรือ iframe จากผู้ให้บริการที่รองรับ');
+  return {url:parsed.embed||parsed.url,title:row.title.trim(),enabled:row.enabled,align:row.align,ratio:row.ratio==='auto'?(parsed.portrait?'portrait':'landscape'):row.ratio};
+ });
+ const video_position=data.video_position??existing.video_position??'featured';
+ if(!videoPositions.includes(video_position))fail('ตำแหน่งวิดีโอไม่ถูกต้อง');
  const campaigns=[];
  for(const row of data.campaigns){
   if(!row||typeof row.enabled!=='boolean')fail('ข้อมูลแคมเปญไม่ถูกต้อง');
@@ -33,7 +45,7 @@ export async function saveShowcase(env,user,shop,plan,data){
   if(item.category&&!await env.DB.prepare('SELECT id FROM products WHERE shop_id=? AND category=? LIMIT 1').bind(shop.id,item.category).first())fail('ไม่พบหมวดหมู่ในร้านนี้');
   campaigns.push(item);
  }
- const value={campaigns,featured:data.featured,newest:data.newest,order:data.order};
+ const value={videos,video_position,campaigns,featured:data.featured,newest:data.newest,order:data.order};
  await env.DB.prepare('UPDATE shops SET showcase_json=? WHERE id=? AND owner_id=?').bind(JSON.stringify(value),shop.id,user.id).run();
  return {ok:true};
 }
@@ -50,6 +62,14 @@ export function renderShowcase(shop,products,{path,catalog,preview,catalogURL}){
  const rail=(id,title,items)=>!items.length?'':`<section class="showcase-section"><div class="section-heading"><h2>${title}</h2><div class="actions"><button type="button" class="secondary" data-rail="${id}" data-direction="-1" aria-label="เลื่อน${title}ไปทางซ้าย"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="14 5 7 12 14 19"/></svg></button><button type="button" class="secondary" data-rail="${id}" data-direction="1" aria-label="เลื่อน${title}ไปทางขวา"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="10 5 17 12 10 19"/></svg></button></div></div><div class="showcase-rail" id="${id}" tabindex="0" aria-label="${title} เลื่อนเพื่อดูสินค้า">${items.map(p=>`<article class="showcase-product">${(p.gallery[0]?.key||p.image_key)?`<img src="${imageURL(p.gallery[0]?.key||p.image_key)}" alt="${e(p.name)}" width="320" height="320" loading="lazy" decoding="async">`:''}<h3>${e(p.name)}</h3><strong>${priceLabel(p)}</strong><a class="button" href="${e(preview?catalogURL(path,{q:p.name}):'/go/'+encodeURIComponent(p.id))}"${preview?'':' target="_blank" rel="noopener nofollow"'}>${preview?'ดูในตัวอย่าง':'ซื้อที่ Thaimart ↗'}</a></article>`).join('')}</div></section>`;
  const sections={campaigns,featured:data.featured?rail('showcase-featured','สินค้าแนะนำ',live.filter(p=>p.featured).slice(0,limit.featured)):'',newest:data.newest?rail('showcase-newest','สินค้ามาใหม่',[...live].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||String(b.id).localeCompare(String(a.id))).slice(0,limit.newest)):''};
  const order=limit.reorder&&Array.isArray(data.order)?[...new Set(data.order.filter(x=>showcaseOrder.includes(x))),...showcaseOrder.filter(x=>!data.order.includes(x))]:showcaseOrder;
- const html=order.map(key=>sections[key]).join('');
+ const videos=(Array.isArray(data.videos)?data.videos:[]).slice(0,limit.videos).filter(v=>v.enabled).map(v=>{
+  const parsed=campaignVideo(v.url);if(!parsed)return '';
+  const align=limit.videoAlign&&['left','right'].includes(v.align)?v.align:'full';
+  const ratio=['landscape','portrait','square'].includes(v.ratio)?v.ratio:parsed.portrait?'portrait':'landscape';
+  return `<article class="campaign-video align-${align}"><div class="campaign-player ratio-${ratio}">${parsed.embed?`<button type="button" class="campaign-play" data-campaign-play="${e(v.url)}" data-title="${e(v.title||parsed.provider)}"><span aria-hidden="true">▶</span><strong>${e(v.title||'วิดีโอ '+parsed.provider)}</strong><small>กดเพื่อโหลดตัวเล่น ${e(parsed.provider)}</small></button>`:`<a class="campaign-play" href="${e(parsed.url)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span><strong>${e(v.title||'วิดีโอ '+parsed.provider)}</strong><small>เปิดดูบน ${e(parsed.provider)}</small></a>`}</div><p>${e(v.title||parsed.provider)} · <a href="${e(parsed.url)}" target="_blank" rel="noopener noreferrer">เปิดต้นทาง ↗</a></p></article>`;
+ }).join('');
+ const videoSection=videos?`<section class="campaign-videos" aria-label="วิดีโอแคมเปญ">${videos}</section>`:'';
+ const position=videoPositions.includes(data.video_position)?data.video_position:'featured';
+ const html=order.map(key=>(position===key?videoSection:'')+sections[key]).join('')+(position==='after'?videoSection:'');
  return html?`<div class="shop-showcase">${html}</div>`:'';
 }
