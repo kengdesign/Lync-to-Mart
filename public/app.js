@@ -10,7 +10,7 @@ import {mountBillingNotice} from './billing-notice.js?v=1';
 import {mountBilling} from './billing.js?v=12';
 import {mountRegistration} from './registration.js';
 import {mountShowcaseEditor} from './showcase-editor.js?v=video1';
-import {mountSellerHelp} from './seller-help.js?v=domains4';
+import {mountSellerHelp} from './seller-help.js?v=videohelp1';
 import {themes,paidThemes,themeAllowed,effectiveTheme} from './shop-themes.js?v=brand8';
 import {mountCatalogExport} from './catalog-export.js?v=export1';
 import {guardStoreForm} from './store-guard.js?v=storeguard1';
