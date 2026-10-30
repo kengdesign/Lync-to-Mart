@@ -1,4 +1,4 @@
-import {connectCampaignVideos} from './campaign-video.js?v=1';
+import {connectCampaignVideos} from './campaign-video.js?v=thumb1';
 connectCampaignVideos();
 import {connectProductLightbox} from './product-lightbox.js?v=swipe1';
 connectProductLightbox();

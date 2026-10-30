@@ -46,7 +46,15 @@ export function campaignVideo(input){
   return null;
  }catch{return null;}
 }
+export function campaignThumbnail(url){
+ const id=youtubeID(url);
+ return id?`https://i.ytimg.com/vi/${id}/hqdefault.jpg`:'';
+}
 export function connectCampaignVideos(root=document){
+ // Image failures must leave the play control usable, including after catalog navigation.
+ const discardThumbnail=image=>{image.closest('.campaign-play')?.classList.remove('has-thumbnail');image.remove();};
+ root.addEventListener('error',event=>{if(event.target.matches?.('img[data-campaign-thumbnail]'))discardThumbnail(event.target);},true);
+ root.querySelectorAll('img[data-campaign-thumbnail]').forEach(image=>{if(image.complete&&!image.naturalWidth)discardThumbnail(image);});
  root.addEventListener('click',event=>{
   const button=event.target.closest('[data-campaign-play]');if(!button)return;
   const video=campaignVideo(button.dataset.campaignPlay);if(!video?.embed)return;

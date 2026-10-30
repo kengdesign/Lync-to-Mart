@@ -1,4 +1,4 @@
-import {campaignVideo,videoPositions} from '../public/campaign-video.js';
+import {campaignVideo,campaignThumbnail,videoPositions} from '../public/campaign-video.js';
 import {scopedMedia} from './team.mjs';
 import {showcaseLimits,showcaseOrder,readShowcase} from '../public/showcase-limits.js';
 import {escape as e} from './security.mjs';
@@ -64,9 +64,10 @@ export function renderShowcase(shop,products,{path,catalog,preview,catalogURL}){
  const order=limit.reorder&&Array.isArray(data.order)?[...new Set(data.order.filter(x=>showcaseOrder.includes(x))),...showcaseOrder.filter(x=>!data.order.includes(x))]:showcaseOrder;
  const videos=(Array.isArray(data.videos)?data.videos:[]).slice(0,limit.videos).filter(v=>v.enabled).map(v=>{
   const parsed=campaignVideo(v.url);if(!parsed)return '';
+  const thumbnail=campaignThumbnail(v.url);
   const align=limit.videoAlign&&['left','right'].includes(v.align)?v.align:'full';
   const ratio=['landscape','portrait','square'].includes(v.ratio)?v.ratio:parsed.portrait?'portrait':'landscape';
-  return `<article class="campaign-video align-${align}"><div class="campaign-player ratio-${ratio}">${parsed.embed?`<button type="button" class="campaign-play" data-campaign-play="${e(v.url)}" data-title="${e(v.title||parsed.provider)}"><span aria-hidden="true">▶</span><strong>${e(v.title||'วิดีโอ '+parsed.provider)}</strong><small>กดเพื่อโหลดตัวเล่น ${e(parsed.provider)}</small></button>`:`<a class="campaign-play" href="${e(parsed.url)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span><strong>${e(v.title||'วิดีโอ '+parsed.provider)}</strong><small>เปิดดูบน ${e(parsed.provider)}</small></a>`}</div><p>${e(v.title||parsed.provider)} · <a href="${e(parsed.url)}" target="_blank" rel="noopener noreferrer">เปิดต้นทาง ↗</a></p></article>`;
+  return `<article class="campaign-video align-${align}"><div class="campaign-player ratio-${ratio}">${parsed.embed?`<button type="button" class="campaign-play${thumbnail?' has-thumbnail':''}" data-campaign-play="${e(v.url)}" data-title="${e(v.title||parsed.provider)}">${thumbnail?`<img data-campaign-thumbnail src="${e(thumbnail)}" alt="" width="480" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer">`: ''}<span aria-hidden="true">▶</span><strong>${e(v.title||'วิดีโอ '+parsed.provider)}</strong><small>กดเพื่อโหลดตัวเล่น ${e(parsed.provider)}</small></button>`:`<a class="campaign-play" href="${e(parsed.url)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span><strong>${e(v.title||'วิดีโอ '+parsed.provider)}</strong><small>เปิดดูบน ${e(parsed.provider)}</small></a>`}</div><p>${e(v.title||parsed.provider)} · <a href="${e(parsed.url)}" target="_blank" rel="noopener noreferrer">เปิดต้นทาง ↗</a></p></article>`;
  }).join('');
  const videoSection=videos?`<section class="campaign-videos" aria-label="วิดีโอแคมเปญ">${videos}</section>`:'';
  const position=videoPositions.includes(data.video_position)?data.video_position:'featured';

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {campaignVideo,connectCampaignVideos} from '../public/campaign-video.js';
+import {campaignVideo,campaignThumbnail,connectCampaignVideos} from '../public/campaign-video.js';
 import {mountShowcaseEditor} from '../public/showcase-editor.js';
 import {database} from '../scripts/adapter.mjs';
 import {hash} from '../src/security.mjs';
@@ -19,6 +19,17 @@ test('allowlisted providers normalize embeds and discard executable HTML',()=>{
  const p=campaignVideo('<iframe onload="evil()" srcdoc="evil" src="https://player.vimeo.com/video/123?h=abcdef1234&amp;autoplay=1"></iframe><script>evil()</script>');
  assert.equal(p.embed,'https://player.vimeo.com/video/123?autoplay=0&h=abcdef1234');
  for(const url of ['javascript:alert(1)','https://youtube.com.evil.test/embed/abcdefghijk','https://evil.test/','https://user@vimeo.com/123','https://vimeo.com:444/123','<script src="https://youtube.com"></script>','<iframe src="https://evil.test"></iframe>','https://geo.dailymotion.com/player.html?video=x123'])assert.equal(campaignVideo(url),null,url);
+});
+
+test('YouTube thumbnails use only validated IDs and failed images leave playable controls',()=>{
+ assert.equal(campaignThumbnail('https://youtu.be/abcdefghijk'),'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg');
+ assert.equal(campaignThumbnail('https://youtube.com.evil.test/watch?v=abcdefghijk'),'');
+ assert.equal(campaignThumbnail('https://vimeo.com/123'),'');
+ const dom=new JSDOM('<button class="campaign-play has-thumbnail" data-campaign-play="https://youtu.be/abcdefghijk"><img data-campaign-thumbnail src="https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg"><span>play</span></button>');
+ const root=dom.window.document;connectCampaignVideos(root);
+ root.querySelector('img').dispatchEvent(new dom.window.Event('error'));
+ assert.equal(root.querySelector('img'),null);assert.equal(root.querySelector('button').classList.contains('has-thumbnail'),false);
+ root.querySelector('button span').click();assert.ok(root.querySelector('iframe'));dom.window.close();
 });
 
 test('player is created only after click, once, with fallback link retained',()=>{
@@ -55,7 +66,7 @@ test('server enforces quotas, downgrade, escaping, placement, and old payload co
    await DB.prepare('UPDATE users SET plan_id=? WHERE id=?').bind(plan,'alice').run();assert.equal((await save(payload(max))).status,200);assert.equal((await save(payload(max+1))).status,403);
   }
   let p=payload(2);p.videos[0].align='left';p.videos[1].align='right';assert.equal((await save(p)).status,200);
-  let res=await call('/shop/alice-shop'),html=await res.text();assert.equal((html.match(/data-campaign-play=/g)||[]).length,2);assert.doesNotMatch(html,/<iframe|<img onerror/);assert.match(html,/&lt;img onerror/);assert.match(html,/ratio-portrait/);assert.match(html,/align-left/);assert.match(res.headers.get('Content-Security-Policy'),/https:\/\/www.tiktok.com/);
+  let res=await call('/shop/alice-shop'),html=await res.text();assert.equal((html.match(/data-campaign-play=/g)||[]).length,2);assert.doesNotMatch(html,/<iframe|<img onerror/);assert.match(html,/&lt;img onerror/);assert.match(html,/ratio-portrait/);assert.match(html,/data-campaign-thumbnail/);assert.match(html,/loading="lazy"/);assert.match(html,/https:\/\/i.ytimg.com\/vi\/abcdefghijk\/hqdefault.jpg/);assert.match(html,/align-left/);assert.match(res.headers.get('Content-Security-Policy'),/https:\/\/www.tiktok.com/);
   // Old cached editors must not silently erase videos.
   const old=payload();delete old.videos;delete old.video_position;assert.equal((await save(old)).status,200);assert.equal(JSON.parse((await DB.prepare("SELECT showcase_json FROM shops WHERE id='alice'").first()).showcase_json).videos.length,2);
   p=payload();p.videos[0].url='https://evil.test';assert.equal((await save(p)).status,400);

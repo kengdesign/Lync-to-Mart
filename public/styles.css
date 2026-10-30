@@ -313,3 +313,9 @@ button.create-shop-button:focus-visible{outline:3px solid #192d46;outline-offset
 .campaign-video-editor{margin:28px 0;padding-top:24px;border-top:1px solid var(--line)}
 .campaign-video-settings{display:grid;grid-template-columns:1fr 1fr;gap:20px}.campaign-video-actions{gap:12px;margin-top:20px}.campaign-video-position{display:block;margin-top:24px}.campaign-video-editor textarea{width:100%;resize:vertical}.campaign-video-editor label{display:block;margin:12px 0}
 @media(max-width:600px){.campaign-videos{grid-template-columns:minmax(0,1fr)}.campaign-video.align-left,.campaign-video.align-right,.campaign-video.align-full{grid-column:1}.campaign-video-settings{grid-template-columns:1fr}.campaign-video-actions{flex-wrap:wrap}}
+.campaign-player .campaign-play.has-thumbnail{position:relative;isolation:isolate;background:#17212b;color:#fff}
+.campaign-play.has-thumbnail img{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.campaign-play.has-thumbnail::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,#00000010,#00000035 45%,#000000b3)}
+.campaign-play.has-thumbnail strong,.campaign-play.has-thumbnail small{text-shadow:0 1px 4px #000}
+.campaign-play.has-thumbnail>span{box-shadow:0 3px 16px #0005}
+.campaign-play:focus-visible{outline:3px solid #E32321;outline-offset:-4px}
